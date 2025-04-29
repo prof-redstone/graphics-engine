@@ -23,7 +23,7 @@ void processInput(GLFWwindow* window);
 char* charger_shader(const char* filePath);
 unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader);
 unsigned int loadCubemap(std::vector<std::string> faces);
-
+std::vector<float> computeNormals(const std::vector<float>& verts);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -124,36 +124,77 @@ int main(){
     //---MESH---
     unsigned int shaderProgram = ShaderLoader("Vertex.glsl", "Frag.glsl");
 
-    float vertices[] = {
-         0.5f,  0.5f, 0.0f, 
-         0.5f, -0.5f, 0.0f, 
-        -0.5f,  0.5f, 0.0f,
+    std::vector<float> vertices = {
+        -1.0f,-1.0f,-1.0f, 
+        -1.0f,-1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f, 
 
-         0.5f, -0.5f, 0.0f, 
-        -0.5f, -0.5f, 0.0f,
-        -0.5f,  0.5f, 0.0f,
+        1.0f, 1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f, 
 
-         0.5f,  0.5f, -1.0f,
-         0.5f, -0.5f, -1.0f,
-        -0.5f,  0.5f, -1.0f,
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
 
-         0.5f, -0.5f, -1.0f,
-        -0.5f, -0.5f, -1.0f,
-        -0.5f,  0.5f, -1.0f
+        1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+
+        -1.0f, 1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f,-1.0f,
+
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f
     };
 
-    unsigned int VBO, VAO;
+    std::vector<float> normals = computeNormals(vertices);
+
+    unsigned int VBOPos, VBONorm, VAO;
 
     glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
 
-    glBindVertexArray(VAO);
+    glBindVertexArray(VAO);//VAO actif
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glGenBuffers(1, &VBOPos);//generate VBO
+    glBindBuffer(GL_ARRAY_BUFFER, VBOPos);//VBO actif
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW); //remplissage VBO actif
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);//configuring VBO layout
+    glEnableVertexAttribArray(0); // enable attribute
+
+    glGenBuffers(1, &VBONorm);
+    glBindBuffer(GL_ARRAY_BUFFER, VBONorm);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(float), normals.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);
 
@@ -175,21 +216,22 @@ int main(){
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-        glm::vec4 skyColor = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        glm::vec3 lightPos = glm::vec3(3.0f, 3.0f, 3.0f);
+        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::vec3 ambientColor = glm::vec3(0.0f, 0.0f, 1.0f);
 
         //---Mesh---
         glUseProgram(shaderProgram);
-        int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        int viewLoc = glGetUniformLocation(shaderProgram, "view");
-        int projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-        int colorLoc = glGetUniformLocation(shaderProgram, "aColor");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform4fv(colorLoc, 1, glm::value_ptr(color));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "ambientColor"), 1, glm::value_ptr(ambientColor));
 
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices)/3);
+        glDrawArrays(GL_TRIANGLES, 0, vertices.size() /3);
 
         //---SkyBox---
         glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que le skybox passe le test quand z=1.0
@@ -214,6 +256,28 @@ int main(){
     }
     glfwTerminate();
     return 0;
+}
+
+std::vector<float> computeNormals(const std::vector<float>& verts) {
+    std::vector<float> normals(verts.size(), 0.0f);
+
+    for (size_t i = 0; i < verts.size(); i += 9) {
+        glm::vec3 v0(verts[i], verts[i + 1], verts[i + 2]);
+        glm::vec3 v1(verts[i + 3], verts[i + 4], verts[i + 5]);
+        glm::vec3 v2(verts[i + 6], verts[i + 7], verts[i + 8]);
+
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+
+        for (int j = 0; j < 3; ++j) {
+            normals[i + j * 3 + 0] = normal.x;
+            normals[i + j * 3 + 1] = normal.y;
+            normals[i + j * 3 + 2] = normal.z;
+        }
+    }
+
+    return normals;
 }
 
 unsigned int loadCubemap(std::vector<std::string> faces)
