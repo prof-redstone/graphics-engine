@@ -20,7 +20,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Frag.glsl" />
-    <None Include="Vertex.glsl" />
+    <None Include="Frag.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+    <None Include="Vertex.glsl">
+      <Filter>Fichiers sources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="camera.h">
+      <Filter>Fichiers sources</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
