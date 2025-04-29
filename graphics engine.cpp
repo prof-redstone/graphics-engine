@@ -216,9 +216,9 @@ int main(){
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-        glm::vec3 lightPos = glm::vec3(3.0f, 3.0f, 3.0f);
+        glm::vec3 lightPos = glm::vec3(-3.0f, 2.0f, -3.0f);
         glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        glm::vec3 ambientColor = glm::vec3(0.0f, 0.0f, 1.0f);
+        glm::vec3 ambientColor = glm::vec3(1.0f, 0.9f, 0.8f);
 
         //---Mesh---
         glUseProgram(shaderProgram);
