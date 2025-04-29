@@ -8,6 +8,10 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <vector>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #include "camera.h"
 
@@ -17,7 +21,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 int InitGLFW(GLFWwindow*& window);
 void processInput(GLFWwindow* window);
 char* charger_shader(const char* filePath);
-unsigned int ShaderLoader();
+unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader);
+unsigned int loadCubemap(std::vector<std::string> faces);
 
 
 const unsigned int SCR_WIDTH = 800;
@@ -41,9 +46,83 @@ int main(){
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glEnable(GL_DEPTH_TEST);
 
+    //---SKY BOX---
+    unsigned int shaderSkybox = ShaderLoader("SkyboxVertex.glsl", "SkyboxFrag.glsl");
 
-    unsigned int shaderProgram = ShaderLoader();
+    float skyboxVertices[] = {
+        // positions          
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
 
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f
+    };
+
+    unsigned int VBO_SKY, VAO_SKY;
+    glGenVertexArrays(1, &VAO_SKY);
+    glGenBuffers(1, &VBO_SKY);
+
+    glBindVertexArray(VAO_SKY);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_SKY);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+
+    std::vector<std::string> faces{
+        "sources/skybox/right.jpg",
+        "sources/skybox/left.jpg",
+        "sources/skybox/top.jpg",
+        "sources/skybox/bottom.jpg",
+        "sources/skybox/front.jpg",
+        "sources/skybox/back.jpg"
+    };
+    unsigned int cubemapTexture = loadCubemap(faces);
+
+    glUseProgram(shaderSkybox);
+    glUniform1i(glGetUniformLocation(shaderSkybox, "skybox"), 0);
+
+    //---MESH---
+    unsigned int shaderProgram = ShaderLoader("Vertex.glsl", "Frag.glsl");
 
     float vertices[] = {
          0.5f,  0.5f, 0.0f, 
@@ -52,7 +131,15 @@ int main(){
 
          0.5f, -0.5f, 0.0f, 
         -0.5f, -0.5f, 0.0f,
-        -0.5f,  0.5f, 0.0f
+        -0.5f,  0.5f, 0.0f,
+
+         0.5f,  0.5f, -1.0f,
+         0.5f, -0.5f, -1.0f,
+        -0.5f,  0.5f, -1.0f,
+
+         0.5f, -0.5f, -1.0f,
+        -0.5f, -0.5f, -1.0f,
+        -0.5f,  0.5f, -1.0f
     };
 
     unsigned int VBO, VAO;
@@ -68,10 +155,11 @@ int main(){
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    glBindVertexArray(0);
 
-    glm::vec4 color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
-    
-    glUniform4fv(glGetUniformLocation(shaderProgram, "aColor"), 1, glm::value_ptr(color));
+
+
+
 
     while (!glfwWindowShouldClose(window)){
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -81,27 +169,83 @@ int main(){
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindVertexArray(0);
 
         glm::mat4 model = glm::mat4(1.0);
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
+        glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
+        glm::vec4 skyColor = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
+        //---Mesh---
+        glUseProgram(shaderProgram);
         int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
         int viewLoc = glGetUniformLocation(shaderProgram, "view");
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
         int projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+        int colorLoc = glGetUniformLocation(shaderProgram, "aColor");
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform4fv(colorLoc, 1, glm::value_ptr(color));
 
-        glDrawArrays(GL_TRIANGLES, 0,6);
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, sizeof(vertices)/3);
+
+        //---SkyBox---
+        glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que le skybox passe le test quand z=1.0
+        glUseProgram(shaderSkybox);
+        // Supprimer la translation de la matrice view pour que la skybox ne bouge pas avec la caméra
+        view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Supprime la translation
+        int viewLoc_sky = glGetUniformLocation(shaderSkybox, "view");
+        int projectionLoc_sky = glGetUniformLocation(shaderSkybox, "projection");
+        glUniformMatrix4fv(viewLoc_sky, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLoc_sky, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Lier la texture du cubemap
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
+        glBindVertexArray(VAO_SKY);
+        glDrawArrays(GL_TRIANGLES, 0, 36); // 36 vertices pour le cube complet
+        glDepthFunc(GL_LESS); // remettre la fonction de profondeur par défaut
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
     glfwTerminate();
     return 0;
+}
+
+unsigned int loadCubemap(std::vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
@@ -153,6 +297,7 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         camera.ProcessKeyboard(UP, deltaTime);
 }
+
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
     float xpos = static_cast<float>(xposIn);
@@ -173,6 +318,7 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 
     camera.ProcessMouseMovement(xoffset, yoffset);
 }
+
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
@@ -189,7 +335,6 @@ char* charger_shader(const char* filePath) {
     buffer << shaderFile.rdbuf();
     std::string shaderCode = buffer.str();
 
-    // Allouer dynamiquement la m�moire pour la cha�ne de caract�res
     char* shaderSource = new char[shaderCode.size() + 1];
     std::copy(shaderCode.begin(), shaderCode.end(), shaderSource);
     shaderSource[shaderCode.size()] = '\0'; // Terminaison avec '\0'
@@ -197,24 +342,48 @@ char* charger_shader(const char* filePath) {
     return shaderSource;
 }
 
-unsigned int ShaderLoader() {
-    char* vertexShaderSource = charger_shader("Vertex.glsl");
+unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader) {
+    char infoLog[512];
+    int success;
+
+    // --- VERTEX SHADER ---
+    char* vertexShaderSource = charger_shader(VertexShader);
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
 
-    char* fragmentShaderSource = charger_shader("Frag.glsl");
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        std::cerr << "Erreur compilation VERTEX shader (" << VertexShader << "):\n" << infoLog << std::endl;
+    }
+
+    // --- FRAGMENT SHADER ---
+    char* fragmentShaderSource = charger_shader(FragmentShader);
     unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
 
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        std::cerr << "Erreur compilation FRAGMENT shader (" << FragmentShader << "):\n" << infoLog << std::endl;
+    }
+
+    // --- SHADER PROGRAM ---
     unsigned int shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
 
-    glUseProgram(shaderProgram);
-    glDeleteShader(vertexShader);//cleaning
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        std::cerr << "Erreur linkage du shader program:\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
+
     return shaderProgram;
 }

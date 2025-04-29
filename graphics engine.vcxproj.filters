@@ -26,6 +26,8 @@
     <None Include="Vertex.glsl">
       <Filter>Fichiers sources</Filter>
     </None>
+    <None Include="SkyboxVertex.glsl" />
+    <None Include="SkyboxFrag.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
