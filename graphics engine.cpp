@@ -25,8 +25,8 @@ unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader);
 unsigned int loadCubemap(std::vector<std::string> faces);
 std::vector<float> computeNormals(const std::vector<float>& verts);
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1000;
+const unsigned int SCR_HEIGHT = 800;
 
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = SCR_WIDTH / 2.0f;
@@ -171,7 +171,56 @@ int main(){
 
         1.0f, 1.0f, 1.0f,
         -1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f
+        1.0f,-1.0f, 1.0f,
+
+        -0.5f, 1.5f, -0.5f, 
+        -0.5f, 1.5f, 0.5f,
+        -0.5f, 2.5f, 0.5f, 
+
+        0.5f, 2.5f, -0.5f,
+        -0.5f, 1.5f, -0.5f,
+        -0.5f, 2.5f, -0.5f, 
+
+        0.5f, 1.5f, 0.5f,
+        -0.5f, 1.5f, -0.5f,
+        0.5f, 1.5f, -0.5f,
+
+        0.5f, 2.5f, -0.5f,
+        0.5f, 1.5f, -0.5f,
+        -0.5f, 1.5f, -0.5f,
+
+        -0.5f, 1.5f, -0.5f,
+        -0.5f, 2.5f, 0.5f,
+        -0.5f, 2.5f, -0.5f,
+
+        0.5f, 1.5f, 0.5f,
+        -0.5f, 1.5f, 0.5f,
+        -0.5f, 1.5f, -0.5f,
+
+        -0.5f, 2.5f, 0.5f,
+        -0.5f, 1.5f, 0.5f,
+        0.5f, 1.5f, 0.5f,
+
+        0.5f, 2.5f, 0.5f,
+        0.5f, 1.5f, -0.5f,
+        0.5f, 2.5f, -0.5f,
+
+        0.5f, 1.5f, -0.5f,
+        0.5f, 2.5f, 0.5f,
+        0.5f, 1.5f, 0.5f,
+
+        0.5f, 2.5f, 0.5f,
+        0.5f, 2.5f, -0.5f,
+        -0.5f, 2.5f, -0.5f,
+
+        0.5f, 2.5f, 0.5f,
+        -0.5f, 2.5f, -0.5f,
+        -0.5f, 2.5f, 0.5f,
+
+        0.5f, 2.5f, 0.5f,
+        -0.5f, 2.5f, 0.5f,
+        0.5f, 1.5f, 0.5f
+
     };
 
     std::vector<float> normals = computeNormals(vertices);
@@ -216,40 +265,45 @@ int main(){
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-        glm::vec3 lightPos = glm::vec3(-3.0f, 2.0f, -3.0f);
-        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        glm::vec3 ambientColor = glm::vec3(1.0f, 0.9f, 0.8f);
+        glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
+        glm::vec3 ambient = glm::vec3(0.1f, 0.09f, 0.08f);  
+        glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f); 
+        glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+        int shininess = 32;
 
-        //---Mesh---
         glUseProgram(shaderProgram);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
         glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "ambientColor"), 1, glm::value_ptr(ambientColor));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(ambient));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(diffuse));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(specular));
+        glUniform1i(glGetUniformLocation(shaderProgram, "shininess"), shininess);
+        glUniform1f(glGetUniformLocation(shaderProgram, "light.distance"), -1.0);
 
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() /3);
 
+
         //---SkyBox---
-        glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que le skybox passe le test quand z=1.0
+        glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que la skybox passe le test quand z=1.0
         glUseProgram(shaderSkybox);
-        // Supprimer la translation de la matrice view pour que la skybox ne bouge pas avec la caméra
-        view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Supprime la translation
-        int viewLoc_sky = glGetUniformLocation(shaderSkybox, "view");
-        int projectionLoc_sky = glGetUniformLocation(shaderSkybox, "projection");
-        glUniformMatrix4fv(viewLoc_sky, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc_sky, 1, GL_FALSE, glm::value_ptr(projection));
+        glm::mat4 view_skybox = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Supprime la translation pour que la skybox ne bouge pas avec la caméra
+        glm::mat4 projection_skybox = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderSkybox, "view"), 1, GL_FALSE, glm::value_ptr(view_skybox));
+        glUniformMatrix4fv(glGetUniformLocation(shaderSkybox, "projection"), 1, GL_FALSE, glm::value_ptr(projection_skybox));
 
         // Lier la texture du cubemap
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
         glBindVertexArray(VAO_SKY);
-        glDrawArrays(GL_TRIANGLES, 0, 36); // 36 vertices pour le cube complet
-        glDepthFunc(GL_LESS); // remettre la fonction de profondeur par défaut
+        glDrawArrays(GL_TRIANGLES, 0, 36); 
+        glDepthFunc(GL_LESS); //fonction de profondeur par défaut
 
         glfwSwapBuffers(window);
         glfwPollEvents();

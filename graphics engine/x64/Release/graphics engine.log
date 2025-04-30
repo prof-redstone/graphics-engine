@@ -1,10 +1,10 @@
 ﻿  graphics engine.cpp
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(234,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(288,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
 LINK : warning LNK4098: conflit entre la bibliothèque par défaut 'LIBCMT' et les autres bibliothèques ; utilisez /NODEFAULTLIB:library
   Génération de code en cours
-  1 of 547 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
+  2 of 548 functions ( 0.4%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    7 functions had inline decision re-evaluated but remain unchanged
+    8 functions had inline decision re-evaluated but remain unchanged
   Fin de la génération du code
 glew32s.lib(glew.obj) : warning LNK4099: PDB '' n'a pu être trouvé avec 'glew32s.lib(glew.obj)' ou sur '' ; l'objet sera lié sans informations de débogage
   graphics engine.vcxproj -> C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\x64\Release\graphics engine.exe
