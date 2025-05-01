@@ -28,6 +28,8 @@
     </None>
     <None Include="SkyboxVertex.glsl" />
     <None Include="SkyboxFrag.glsl" />
+    <None Include="simpleDepthShaderVertex.glsl" />
+    <None Include="simpleDepthShaderFrag.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">

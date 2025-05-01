@@ -24,6 +24,8 @@ char* charger_shader(const char* filePath);
 unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader);
 unsigned int loadCubemap(std::vector<std::string> faces);
 std::vector<float> computeNormals(const std::vector<float>& verts);
+void renderScene(unsigned int shader, unsigned int VAO, int VBOSize);
+void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture);
 
 const unsigned int SCR_WIDTH = 1000;
 const unsigned int SCR_HEIGHT = 800;
@@ -123,6 +125,7 @@ int main(){
 
     //---MESH---
     unsigned int shaderProgram = ShaderLoader("Vertex.glsl", "Frag.glsl");
+    unsigned int shaderProgramDepth = ShaderLoader("simpleDepthShaderVertex.glsl", "simpleDepthShaderFrag.glsl");
 
     std::vector<float> vertices = {
         -1.0f,-1.0f,-1.0f, 
@@ -247,8 +250,27 @@ int main(){
 
     glBindVertexArray(0);
 
+    //shadow
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
 
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
     while (!glfwWindowShouldClose(window)){
@@ -261,55 +283,86 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(0);
 
-        glm::mat4 model = glm::mat4(1.0);
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-        glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
-        glm::vec3 ambient = glm::vec3(0.1f, 0.09f, 0.08f);  
-        glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f); 
-        glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
-        int shininess = 32;
+        float near_plane = 1.0f, far_plane = 7.5f;
+        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+        glUseProgram(shaderProgramDepth);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-        glUseProgram(shaderProgram);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
-        glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
-        glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(ambient));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(diffuse));
-        glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(specular));
-        glUniform1i(glGetUniformLocation(shaderProgram, "shininess"), shininess);
-        glUniform1f(glGetUniformLocation(shaderProgram, "light.distance"), -1.0);
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT); 
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);  
+        glClear(GL_DEPTH_BUFFER_BIT);
 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size() /3);
+
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+        // 2. then render scene as normal with shadow mapping (using depth map)
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);  
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        renderScene(shaderProgram, VAO, vertices.size() / 3);
+
+        //renderScene(shaderProgram, VAO, vertices.size() / 3);
 
 
         //---SkyBox---
-        glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que la skybox passe le test quand z=1.0
-        glUseProgram(shaderSkybox);
-        glm::mat4 view_skybox = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Supprime la translation pour que la skybox ne bouge pas avec la caméra
-        glm::mat4 projection_skybox = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        glUniformMatrix4fv(glGetUniformLocation(shaderSkybox, "view"), 1, GL_FALSE, glm::value_ptr(view_skybox));
-        glUniformMatrix4fv(glGetUniformLocation(shaderSkybox, "projection"), 1, GL_FALSE, glm::value_ptr(projection_skybox));
-
-        // Lier la texture du cubemap
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-
-        glBindVertexArray(VAO_SKY);
-        glDrawArrays(GL_TRIANGLES, 0, 36); 
-        glDepthFunc(GL_LESS); //fonction de profondeur par défaut
+        renderSkybox(shaderSkybox, VAO_SKY, cubemapTexture);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
     glfwTerminate();
     return 0;
+}
+
+void renderScene(unsigned int shader, unsigned int VAO, int VBOSize) {
+    glm::mat4 model = glm::mat4(1.0);
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 view = camera.GetViewMatrix();
+    glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 0.1f);
+    glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
+    glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
+    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    int shininess = 32;
+
+    glUseProgram(shader);
+    glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(glGetUniformLocation(shader, "viewPos"), 1, glm::value_ptr(camera.Position));
+    glUniform4fv(glGetUniformLocation(shader, "color"), 1, glm::value_ptr(color));
+    glUniform4fv(glGetUniformLocation(shader, "light.lightVector"), 1, glm::value_ptr(lightVector));
+    glUniform3fv(glGetUniformLocation(shader, "light.ambient"), 1, glm::value_ptr(ambient));
+    glUniform3fv(glGetUniformLocation(shader, "light.diffuse"), 1, glm::value_ptr(diffuse));
+    glUniform3fv(glGetUniformLocation(shader, "light.specular"), 1, glm::value_ptr(specular));
+    glUniform1i(glGetUniformLocation(shader, "shininess"), shininess);
+    glUniform1f(glGetUniformLocation(shader, "light.distance"), -1.0);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, VBOSize);
+}
+
+void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture) {
+    glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que la skybox passe le test quand z=1.0
+    glUseProgram(shader);
+    glm::mat4 view_skybox = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Supprime la translation pour que la skybox ne bouge pas avec la caméra
+    glm::mat4 projection_skybox = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view_skybox));
+    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection_skybox));
+
+    // Lier la texture du cubemap
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDepthFunc(GL_LESS); //fonction de profondeur par défaut
+
 }
 
 std::vector<float> computeNormals(const std::vector<float>& verts) {

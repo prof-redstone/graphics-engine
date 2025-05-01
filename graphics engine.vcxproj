@@ -137,6 +137,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Frag.glsl" />
+    <None Include="simpleDepthShaderFrag.glsl" />
+    <None Include="simpleDepthShaderVertex.glsl" />
     <None Include="SkyboxFrag.glsl" />
     <None Include="SkyboxVertex.glsl" />
     <None Include="Vertex.glsl" />
