@@ -37,11 +37,13 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 lightDir, vec3 normal) {
             shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
         }
     }
+    if (projCoords.z > 1.0)
+        shadow = 0.0;
     shadow /= 9.0;
     return shadow;
 }
 
-vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, vec4 FragPosLightSpace) {
+vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, vec3 viewDir, vec4 FragPosLightSpace) {
     vec3 result = vec3(0.0,0.0,0.0);
     vec3 lightDir = vec3(0.0, 0.0, 0.0);
 
@@ -52,7 +54,6 @@ vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, ve
         lightDir = normalize(l.lightVector.xyz);
     }
 
-    vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
 
     result += max(dot(norm, lightDir), 0.0) * l.diffuse;
@@ -70,5 +71,8 @@ vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, ve
 }
 
 void main() {
-    FragColor = computeLight(light, fs_in.Normal, fs_in.FragPos, color, viewPos, fs_in.FragPosLightSpace);
+    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
+    if (dot(viewDir, fs_in.Normal) < 0.0)
+        discard;
+    FragColor = computeLight(light, fs_in.Normal, fs_in.FragPos, color, viewPos, viewDir, fs_in.FragPosLightSpace);
 }

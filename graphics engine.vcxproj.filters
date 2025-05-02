@@ -20,16 +20,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Frag.glsl">
-      <Filter>Fichiers sources</Filter>
-    </None>
-    <None Include="Vertex.glsl">
-      <Filter>Fichiers sources</Filter>
-    </None>
     <None Include="SkyboxVertex.glsl" />
     <None Include="SkyboxFrag.glsl" />
-    <None Include="simpleDepthShaderVertex.glsl" />
-    <None Include="simpleDepthShaderFrag.glsl" />
+    <None Include="LightVertex.glsl" />
+    <None Include="LightFrag.glsl" />
+    <None Include="DepthShadowFrag.glsl" />
+    <None Include="DepthShadowVertex.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
