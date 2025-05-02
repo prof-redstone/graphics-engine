@@ -24,7 +24,6 @@ char* charger_shader(const char* filePath);
 unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader);
 unsigned int loadCubemap(std::vector<std::string> faces);
 std::vector<float> computeNormals(const std::vector<float>& verts);
-void renderScene(unsigned int shader, unsigned int VAO, int VBOSize);
 void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture);
 
 const unsigned int SCR_WIDTH = 1000;
@@ -222,8 +221,15 @@ int main(){
 
         0.5f, 2.5f, 0.5f,
         -0.5f, 2.5f, 0.5f,
-        0.5f, 1.5f, 0.5f
+        0.5f, 1.5f, 0.5f,
 
+         5.0f, -2.0f, -5.0f,
+        - 5.0f, -2.0f, -5.0f,  // triangle 1
+         5.0f, -2.0f,  5.0f,
+
+         5.0f, -2.0f,  5.0f,
+        -5.0f, -2.0f, -5.0f,  // triangle 2
+        -5.0f, -2.0f,  5.0f
     };
 
     std::vector<float> normals = computeNormals(vertices);
@@ -283,7 +289,7 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(0);
 
-        float near_plane = 1.0f, far_plane = 7.5f;
+        float near_plane = 0.0f, far_plane = 20.0f;
         glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
         glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 lightSpaceMatrix = lightProjection * lightView;
@@ -350,9 +356,6 @@ int main(){
     return 0;
 }
 
-void renderScene(unsigned int shader, unsigned int VAO, int VBOSize) {
-    
-}
 
 void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture) {
     glDepthFunc(GL_LEQUAL);  // change la fonction de profondeur pour que la skybox passe le test quand z=1.0

@@ -1,6 +1,6 @@
 ﻿  graphics engine.cpp
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(300,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(340,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(306,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\graphics engine.cpp(346,55): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
 LINK : warning LNK4098: conflit entre la bibliothèque par défaut 'LIBCMT' et les autres bibliothèques ; utilisez /NODEFAULTLIB:library
   Génération de code en cours
   1 of 560 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
