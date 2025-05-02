@@ -254,7 +254,7 @@ int main(){
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
 
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const unsigned int SHADOW_WIDTH = 2058, SHADOW_HEIGHT = 2058;
 
     unsigned int depthMap;
     glGenTextures(1, &depthMap);
@@ -285,7 +285,7 @@ int main(){
 
         float near_plane = 1.0f, far_plane = 7.5f;
         glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        glm::mat4 lightView = glm::lookAt(glm::vec3(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 lightSpaceMatrix = lightProjection * lightView;
         glm::mat4 model = glm::mat4(1.0);
         glUseProgram(shaderProgramDepth);
@@ -296,9 +296,9 @@ int main(){
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO); 
         glClear(GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(VAO);
-        glCullFace(GL_FRONT);
+        //glCullFace(GL_FRONT);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
-        glCullFace(GL_BACK);
+        //glCullFace(GL_BACK);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -312,7 +312,7 @@ int main(){
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 0.1f);
-        glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
+        glm::vec4 lightVector = glm::vec4(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f, 1.0);//w=1.0 position, w=0.0 direction
         glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
         glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
         glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
