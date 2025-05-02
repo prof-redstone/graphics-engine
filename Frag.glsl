@@ -11,16 +11,30 @@ struct Light {
     float distance; //-1.0 => 0 attenuation, !=0.0 => dist to no light (aprox)
 };
 
-in vec3 FragPos;
-in vec3 Normal;
+in VS_OUT{
+    vec3 FragPos;
+    vec3 Normal;
+    vec4 FragPosLightSpace;
+} fs_in;
 
 uniform vec4 color;
 uniform vec3 viewPos;
 uniform Light light;
-
 uniform int shininess = 32; //pow of 2
 
-vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos) {
+uniform sampler2D shadowMap;
+
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 lightDir, vec3 normal) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+    return shadow;
+}
+
+vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, vec4 FragPosLightSpace) {
     vec3 result = vec3(0.0,0.0,0.0);
     vec3 lightDir = vec3(0.0, 0.0, 0.0);
 
@@ -34,9 +48,10 @@ vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos) {
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
 
-    result += l.ambient;
     result += max(dot(norm, lightDir), 0.0) * l.diffuse;
     result += pow(max(dot(viewDir, reflectDir), 0.0), shininess) * l.specular;
+    result *= 1.0 - ShadowCalculation(fs_in.FragPosLightSpace, lightDir, norm);
+    result += l.ambient;
 
     if (l.distance != -1.0) {
         float d = length(l.lightVector.xyz - FragPos);
@@ -48,5 +63,5 @@ vec4 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos) {
 }
 
 void main() {
-    FragColor = computeLight(light, Normal, FragPos, color, viewPos);
+    FragColor = computeLight(light, fs_in.Normal, fs_in.FragPos, color, viewPos, fs_in.FragPosLightSpace);
 }

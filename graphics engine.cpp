@@ -285,27 +285,59 @@ int main(){
 
         float near_plane = 1.0f, far_plane = 7.5f;
         glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightView = glm::lookAt(glm::vec3(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+        glm::mat4 model = glm::mat4(1.0);
         glUseProgram(shaderProgramDepth);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT); 
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);  
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO); 
         glClear(GL_DEPTH_BUFFER_BIT);
+        glBindVertexArray(VAO);
+        glCullFace(GL_FRONT);
+        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
+        glCullFace(GL_BACK);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0); 
         // 2. then render scene as normal with shadow mapping (using depth map)
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);  
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
         glBindTexture(GL_TEXTURE_2D, depthMap);
-        renderScene(shaderProgram, VAO, vertices.size() / 3);
 
-        //renderScene(shaderProgram, VAO, vertices.size() / 3);
+        model = glm::mat4(1.0);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 0.1f);
+        glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
+        glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
+        glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+        glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+        int shininess = 32;
+
+        glUseProgram(shaderProgram);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(ambient));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(diffuse));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(specular));
+        glUniform1i(glGetUniformLocation(shaderProgram, "shininess"), shininess);
+        glUniform1f(glGetUniformLocation(shaderProgram, "light.distance"), -1.0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glUniform1i(glGetUniformLocation(shaderProgram, "shadowMap"), 0);
+
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
 
 
         //---SkyBox---
@@ -319,31 +351,7 @@ int main(){
 }
 
 void renderScene(unsigned int shader, unsigned int VAO, int VBOSize) {
-    glm::mat4 model = glm::mat4(1.0);
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-    glm::mat4 view = camera.GetViewMatrix();
-    glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 0.1f);
-    glm::vec4 lightVector = glm::vec4(-1.5f + glm::sin((float)glfwGetTime()), 1.5f + glm::cos((float)glfwGetTime()), -1.5f, 1.0);//w=1.0 position, w=0.0 direction
-    glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
-    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
-    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
-    int shininess = 32;
-
-    glUseProgram(shader);
-    glUniformMatrix4fv(glGetUniformLocation(shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(glGetUniformLocation(shader, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3fv(glGetUniformLocation(shader, "viewPos"), 1, glm::value_ptr(camera.Position));
-    glUniform4fv(glGetUniformLocation(shader, "color"), 1, glm::value_ptr(color));
-    glUniform4fv(glGetUniformLocation(shader, "light.lightVector"), 1, glm::value_ptr(lightVector));
-    glUniform3fv(glGetUniformLocation(shader, "light.ambient"), 1, glm::value_ptr(ambient));
-    glUniform3fv(glGetUniformLocation(shader, "light.diffuse"), 1, glm::value_ptr(diffuse));
-    glUniform3fv(glGetUniformLocation(shader, "light.specular"), 1, glm::value_ptr(specular));
-    glUniform1i(glGetUniformLocation(shader, "shininess"), shininess);
-    glUniform1f(glGetUniformLocation(shader, "light.distance"), -1.0);
-
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, VBOSize);
+    
 }
 
 void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture) {
