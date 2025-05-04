@@ -18,6 +18,9 @@
     <ClCompile Include="graphics engine.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
+    <ClCompile Include="render.cpp">
+      <Filter>Fichiers sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="SkyboxVertex.glsl" />
@@ -26,10 +29,18 @@
     <None Include="LightFrag.glsl" />
     <None Include="DepthShadowFrag.glsl" />
     <None Include="DepthShadowVertex.glsl" />
+    <None Include="MainFrag.glsl" />
+    <None Include="MainVertex.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
       <Filter>Fichiers sources</Filter>
+    </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Fichiers sources</Filter>
+    </ClInclude>
+    <ClInclude Include="light.h">
+      <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

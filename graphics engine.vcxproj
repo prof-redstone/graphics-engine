@@ -134,17 +134,22 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="graphics engine.cpp" />
+    <ClCompile Include="render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DepthShadowFrag.glsl" />
     <None Include="DepthShadowVertex.glsl" />
     <None Include="LightFrag.glsl" />
     <None Include="LightVertex.glsl" />
+    <None Include="MainFrag.glsl" />
+    <None Include="MainVertex.glsl" />
     <None Include="SkyboxFrag.glsl" />
     <None Include="SkyboxVertex.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="light.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
