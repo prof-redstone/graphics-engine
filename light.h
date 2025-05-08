@@ -27,18 +27,18 @@ public:
     float distance;
     glm::mat4 lightSpaceMatrix;
     // Constructeurs
-    Light(LightType type = POINT);
-    Light(LightType type, glm::vec3 position, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float distance = -1.0f);
+    inline Light(LightType type = POINT);
+    inline Light(LightType type, glm::vec3 position, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float distance = -1.0f);
 
     // Initialisation
-    void init(unsigned int shadowWidth = 2048, unsigned int shadowHeight = 2048);
+    inline void init(unsigned int shadowWidth = 2048, unsigned int shadowHeight = 2048);
 
     // Mise � jour
-    void update();
-    void setPosition(const glm::vec3& position);
-    void setDirection(const glm::vec3& direction);
-    void setColors(const glm::vec3& ambient, const glm::vec3& diffuse, const glm::vec3& specular);
-    void setDistance(float distance);
+    inline void update();
+    inline void setPosition(const glm::vec3& position);
+    inline void setDirection(const glm::vec3& direction);
+    inline void setColors(const glm::vec3& ambient, const glm::vec3& diffuse, const glm::vec3& specular);
+    inline void setDistance(float distance);
 
     // Fonctions de rendu
     /*void beginShadowPass();
@@ -158,8 +158,8 @@ void Light::setColors(const glm::vec3& a_ambient, const glm::vec3& a_diffuse, co
     specular = a_specular;
 }
 
-void Light::setDistance(float distance) {
-    distance = distance;
+void Light::setDistance(float a_distance) {
+    distance = a_distance;
 }
 
 glm::vec4 Light::getLightVector() {

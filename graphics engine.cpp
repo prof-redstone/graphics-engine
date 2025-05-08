@@ -1,21 +1,23 @@
-#define GLEW_STATIC
+/*#define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/type_ptr.hpp>*/
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <vector>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+//#define STB_IMAGE_IMPLEMENTATION
+//#include "stb_image.h"
 
-#include "camera.h"
-#include "light.h"
+//#include "camera.h"
+//#include "light.h"
+#include "render.hpp"
 
+/*
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -38,14 +40,15 @@ float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 float deltaTime = 0.0f;	// time between current frame and last frame
-float lastFrame = 0.0f;
+float lastFrame = 0.0f;*/
 
 
 
 int main(){
     std::cout << "Graphics Engine\n";
 
-    GLFWwindow* window;
+
+    /*GLFWwindow* window;
     if (InitGLFW(window) == -1) return -1;    
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glEnable(GL_DEPTH_TEST);
@@ -118,8 +121,8 @@ int main(){
 
     //---MESH---
     unsigned int shaderProgram = ShaderLoader("MainVertex.glsl", "MainFrag.glsl");
-    unsigned int shaderProgramDepth = ShaderLoader("DepthShadowVertex.glsl", "DepthShadowFrag.glsl");
-
+    unsigned int shaderProgramDepth = ShaderLoader("DepthShadowVertex.glsl", "DepthShadowFrag.glsl");*/
+    SetupRender();
     std::vector<float> vertices = {
         -1.0f,-1.0f,-1.0f, 
         -1.0f,-1.0f, 1.0f,
@@ -225,13 +228,14 @@ int main(){
         -20.0f, -0.0f, -20.0f, 
         -20.0f, -0.0f,  20.0f
     };
-
+    Mesh mesh = setupMesh(vertices);
+    /*
     std::vector<float> normals = computeNormals(vertices);
+
 
     unsigned int VBOPos, VBONorm, VAO;
 
     glGenVertexArrays(1, &VAO);
-
     glBindVertexArray(VAO);//VAO actif
 
     glGenBuffers(1, &VBOPos);//generate VBO
@@ -248,11 +252,12 @@ int main(){
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
 
-    glBindVertexArray(0);
+    glBindVertexArray(0);*/
+
 
     //shadow
-    Light sunLight(POINT);
-    sunLight.init(2058, 2058);
+    //Light sunLight(POINT);
+    //sunLight.init(2058, 2058);
     /*unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
 
@@ -276,10 +281,11 @@ int main(){
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    while (!glfwWindowShouldClose(window)){
-        float currentFrame = static_cast<float>(glfwGetTime());
+    //glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    while (shouldCloseTheApp()){
+        renderScene();
+        /*float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         processInput(window);
@@ -288,42 +294,20 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(0);
 
-        /*float near_plane = 0.1f, far_plane = 25.0f;
-        float fov = glm::radians(90.0f);  
-        float aspectRatio = 1.0f;
 
-        //glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        glm::mat4 lightProjection = glm::perspective(fov, aspectRatio, near_plane, far_plane);
-        
-        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-        glm::mat4 model = glm::mat4(1.0);
-        glUseProgram(shaderProgramDepth);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT); 
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO); 
-        glClear(GL_DEPTH_BUFFER_BIT);
-        glBindVertexArray(VAO);
-        glCullFace(GL_FRONT);
-
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
-
-        glCullFace(GL_BACK);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);*/
-
-        glm::mat4 model = glm::mat4(1.0);
         sunLight.setPosition(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f));
         sunLight.update();
+        glViewport(0, 0, sunLight.shadowWidth, sunLight.shadowHeight);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, sunLight.depthMapFBO);
+
         glUseProgram(shaderProgramDepth);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(sunLight.lightSpaceMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glViewport(0, 0, sunLight.shadowWidth, sunLight.shadowHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, sunLight.depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        glBindVertexArray(VAO);
         glCullFace(GL_FRONT);
+
+        glm::mat4 model = glm::mat4(1.0);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
 
         glCullFace(GL_BACK);
@@ -381,15 +365,15 @@ int main(){
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         //---SkyBox---
-        renderSkybox(shaderSkybox, VAO_SKY, cubemapTexture);
+        renderSkybox(shaderSkybox, VAO_SKY, 0);
 
         glfwSwapBuffers(window);
-        glfwPollEvents();
+        glfwPollEvents();*/
     }
     glfwTerminate();
     return 0;
 }
-
+/*
 unsigned int setupLightVAO() {
     float LightVertices[] = {
         // positions          
@@ -729,3 +713,4 @@ unsigned int ShaderLoader(const char* VertexShader, const char* FragmentShader) 
 
     return shaderProgram;
 }
+*/
