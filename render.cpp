@@ -1,7 +1,7 @@
 #define GLEW_STATIC
 #include "render.hpp"
 #include "camera.h"
-#include "light.h"
+//#include "light.h"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -17,12 +17,13 @@ unsigned int SCR_HEIGHT = 800;
 GLFWwindow* window = nullptr;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
-Mesh tempMesh;
-Light sunLight(DIRECTIONAL);
+std::vector<Mesh*> meshList;
 
 // Variables statiques locales
 static float lastX = SCR_WIDTH / 2.0f;
 static float lastY = SCR_HEIGHT / 2.0f;
+static unsigned int SHADOW_WIDTH = 2058;
+static unsigned int SHADOW_HEIGHT = 2058;
 static bool firstMouse = true;
 static float deltaTime = 0.0f;
 static float lastFrame = 0.0f;
@@ -67,10 +68,8 @@ void SetupRender() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
-    //sunLight.init(2058, 2058);
     glGenFramebuffers(1, &depthMapFBO);
 
-    const unsigned int SHADOW_WIDTH = 2058, SHADOW_HEIGHT = 2058;
 
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -90,48 +89,63 @@ void SetupRender() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-Mesh setupMesh(std::vector<float> vertices) {
-    Mesh mesh;
-    mesh.vertices = vertices;// = addNormals(vertices);
-    glGenVertexArrays(1, &mesh.VAO);
-    glBindVertexArray(mesh.VAO);
+void terminateRender() {
+    for (Mesh* mesh : meshList) {
+        if (mesh != nullptr) {
+            glDeleteVertexArrays(1, &mesh->VAO);
+            glDeleteBuffers(1, &mesh->VBO);
+            GLuint vboNorm = 0; 
+            glDeleteBuffers(1, &vboNorm);
+            delete mesh;
+            mesh = nullptr; 
+        }
+    }
+    meshList.clear();
 
-    glGenBuffers(1, &mesh.VBO);//generate VBO
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);//VBO actif
+    glfwTerminate();
+}
+
+Mesh* setupMesh(std::vector<float> vertices) {
+    Mesh* mesh = new Mesh(); // Allocation sur le tas
+    mesh->vertices = vertices;// = addNormals(vertices);
+    glGenVertexArrays(1, &mesh->VAO);
+    glBindVertexArray(mesh->VAO);
+
+    glGenBuffers(1, &mesh->VBO);//generate VBO
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);//VBO actif
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     unsigned int VBONorm;
-    mesh.normales = computeNormals(vertices);
+    mesh->normales = computeNormals(vertices);
 
     glGenBuffers(1, &VBONorm);//generate VBO
     glBindBuffer(GL_ARRAY_BUFFER, VBONorm);//VBO actif
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), mesh.normales.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);
 
-    mesh.model = glm::mat4(1.0);
-    mesh.color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-    mesh.shininess = 32;
-    for (auto i : mesh.vertices)
-        std::cout << i << ' ';
-    tempMesh = mesh;
+    mesh->model = glm::mat4(1.0);
+    mesh->color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
+    mesh->shininess = 32;
+    meshList.push_back(mesh);
     return mesh;
 }
 
-void renderMesh(Mesh mesh) {
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(mesh.model));
-    glBindVertexArray(mesh.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, mesh.vertices.size() / 3);
+void renderMesh(unsigned int shaderName) {
+    for (int i = 0; i < meshList.size(); i++){
+        glUniformMatrix4fv(glGetUniformLocation(shaderName, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
+        glBindVertexArray((*meshList[i]).VAO);
+        glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
+    }
 }
 
 void renderScene() {
-    //calculating shadow
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
@@ -142,23 +156,24 @@ void renderScene() {
     glBindVertexArray(0);
 
 
+    //calculating shadow
     float near_plane = 0.0f, far_plane = 20.0f;
     glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
     glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-    glm::mat4 model = glm::mat4(1.0);
     glUseProgram(shaderProgramDepth);
     glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    
 
     glViewport(0, 0, 2058, 2058);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
-    glBindVertexArray(tempMesh.VAO);
-    //glCullFace(GL_FRONT);
-    glDrawArrays(GL_TRIANGLES, 0, tempMesh.vertices.size() / 3);
-    //glCullFace(GL_BACK);
+    glCullFace(GL_FRONT);
+    renderMesh(shaderProgramDepth);
+    glCullFace(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
 
 
 
@@ -168,24 +183,26 @@ void renderScene() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindTexture(GL_TEXTURE_2D, depthMap);
 
-    model = glm::mat4(1.0);
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     glm::mat4 view = camera.GetViewMatrix();
     glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
-    glm::vec4 lightVector = glm::vec4(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f, 1.0);//w=1.0 position, w=0.0 direction
+    //glm::vec4 lightVector = glm::vec4(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f, 1.0);//w=1.0 position, w=0.0 direction
+    glm::vec3 lightPosition = glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f);
     glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
     glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
     glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    int lightType = 1;
     int shininess = 32;
 
     glUseProgram(shaderProgram);
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
     glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
-    glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
+    /*glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+    //glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
+    glUniform1i(glGetUniformLocation(shaderProgram, "light.lightType"), lightType);
+    glUniform3fv(glGetUniformLocation(shaderProgram, "light.position"), 1, glm::value_ptr(lightPosition));
     glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(ambient));
     glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(diffuse));
     glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(specular));
@@ -194,10 +211,37 @@ void renderScene() {
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depthMap);
-    glUniform1i(glGetUniformLocation(shaderProgram, "shadowMap"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "shadowMap"), 0);*/
 
-    glBindVertexArray(tempMesh.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, tempMesh.vertices.size() / 3);
+    bool ombre = true;
+    std::string base = "lights[" + std::to_string(0) + "]";
+    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".position").c_str()), 1, glm::value_ptr(lightPosition));
+    //glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".direction").c_str()), 1, glm::value_ptr(direction));
+    glUniform1i(glGetUniformLocation(shaderProgram, (base + ".lightType").c_str()), lightType);
+    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".ambient").c_str()), 1, glm::value_ptr(ambient));
+    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".diffuse").c_str()), 1, glm::value_ptr(diffuse));
+    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".specular").c_str()), 1, glm::value_ptr(specular));
+    glUniform1f(glGetUniformLocation(shaderProgram, (base + ".distance").c_str()), -1.0);
+    glUniform1i(glGetUniformLocation(shaderProgram, (base + ".castshadow").c_str()), 1);
+
+    if (ombre) {
+        int shadowIndex = 0;
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, (base + ".lightSpaceMatrix").c_str()), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+
+        std::string shadowSampler = "shadowMaps[" + std::to_string(shadowIndex) + "]";
+        glActiveTexture(GL_TEXTURE0 + shadowIndex);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glUniform1i(glGetUniformLocation(shaderProgram, shadowSampler.c_str()), shadowIndex);
+
+        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), shadowIndex);
+        ++shadowIndex;
+    }
+    else {
+        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), -1);
+    }
+    glUniform1i(glGetUniformLocation(shaderProgram, "numLights"), 1);
+
+    renderMesh(shaderProgram);
 
 
 
@@ -219,6 +263,23 @@ void renderScene() {
 
     glfwSwapBuffers(window);
     glfwPollEvents();
+}
+
+glm::mat4 getLightSpaceMatrix(Light* l) {
+
+    glm::mat4 lightProjection;
+    glm::mat4 lightView;
+
+    if (l->type == DIRECTIONAL) {
+        lightProjection = glm::ortho(-l->width, l->width, -l->width, l->width, l->near_plane, l->far_plane);
+        lightView = glm::lookAt(l->position, l->position + l->direction, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+    else {
+        lightProjection = glm::perspective(l->fov, l->aspectRatio, l->near_plane, l->far_plane);
+        lightView = glm::lookAt(l->position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    return lightProjection * lightView;
 }
 
 unsigned int setupLightVAO() {
