@@ -38,10 +38,10 @@ struct Light {
     glm::vec3 specular;
     float distance;
 
-    bool castshadow;
+    int castshadow;
     unsigned int depthMapFBO;
     unsigned int depthMap;
-    unsigned int shadowWidth, shadowHeight;
+    unsigned int shadowWidth = 2048, shadowHeight = 2048;
     float near_plane = 0.1f, far_plane = 25.0f;
     float width = 10.0f;//ortho
     float fov = glm::radians(90.0f);//perspective
@@ -66,7 +66,7 @@ void SetupRender();
 void terminateRender();
 // Fonctions de rendu
 void renderScene();
-void renderMesh(unsigned int shaderName);
+//void renderMesh(unsigned int shaderName);
 void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture);
 
 // Gestion des entrées
@@ -83,6 +83,9 @@ Mesh* setupMesh(std::vector<float> vertices);
 unsigned int setupSkyboxVAO();
 unsigned int setupLightVAO();
 
+//setup des lights
+Light* setupLight(LightType type, int castShadow);
+void setupLightShadow(Light* l);
 // Gestion de la fenêtre
 bool shouldCloseTheApp();
 

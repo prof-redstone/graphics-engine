@@ -18,12 +18,11 @@ GLFWwindow* window = nullptr;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
 std::vector<Mesh*> meshList;
+std::vector<Light*> lightList;
 
 // Variables statiques locales
 static float lastX = SCR_WIDTH / 2.0f;
 static float lastY = SCR_HEIGHT / 2.0f;
-static unsigned int SHADOW_WIDTH = 2058;
-static unsigned int SHADOW_HEIGHT = 2058;
 static bool firstMouse = true;
 static float deltaTime = 0.0f;
 static float lastFrame = 0.0f;
@@ -36,6 +35,8 @@ static unsigned int VAO_LIGHT;
 static unsigned int cubemapTexture;
 
 
+static unsigned int SHADOW_WIDTH = 2058;
+static unsigned int SHADOW_HEIGHT = 2058;
 static unsigned int depthMapFBO;
 static unsigned int depthMap;
 
@@ -69,8 +70,6 @@ void SetupRender() {
 
 
     glGenFramebuffers(1, &depthMapFBO);
-
-
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
@@ -137,13 +136,52 @@ Mesh* setupMesh(std::vector<float> vertices) {
     return mesh;
 }
 
-void renderMesh(unsigned int shaderName) {
+Light* setupLight(LightType type = POINT, int castShadow = 1) {
+    Light* light = new Light();
+    light->type = type;
+    light->position = glm::vec3(4.0f, 5.0f, 1.0f);
+    light->direction = glm::vec3(1.5f, 5.0f, 1.0f); 
+    light->ambient = glm::vec3(0.2f, 0.18f, 0.16f);
+    light->diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+    light->specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    light->castshadow = castShadow;
+    light->distance = -1.0f;
+
+    if (castShadow == 1) {
+        setupLightShadow(light);
+    }
+
+    lightList.push_back(light);
+    return light;
+}
+
+void setupLightShadow(Light* l) {
+    glGenFramebuffers(1, &(l->depthMapFBO));
+    glGenTextures(1, &(l->depthMap));
+    glBindTexture(GL_TEXTURE_2D, l->depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        l->shadowWidth, l->shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, l->depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, l->depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+/*void renderMesh(unsigned int shaderName) {
     for (int i = 0; i < meshList.size(); i++){
         glUniformMatrix4fv(glGetUniformLocation(shaderName, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
         glBindVertexArray((*meshList[i]).VAO);
         glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
     }
-}
+}*/
 
 void renderScene() {
     float currentFrame = static_cast<float>(glfwGetTime());
@@ -156,36 +194,41 @@ void renderScene() {
     glBindVertexArray(0);
 
 
-    //calculating shadow
-    float near_plane = 0.0f, far_plane = 20.0f;
-    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-    glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    //better one
     glUseProgram(shaderProgramDepth);
-    glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+    for (int i = 0; i < lightList.size(); i++) {
+        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, (*lightList[i]).near_plane, (*lightList[i]).far_plane);
+        glm::mat4 lightView = glm::lookAt((*lightList[i]).position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glViewport(0, 0, (*lightList[i]).shadowWidth, (*lightList[i]).shadowHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, (*lightList[i]).depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glCullFace(GL_FRONT);
+
+        for (int i = 0; i < meshList.size(); i++) {
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
+            glBindVertexArray((*meshList[i]).VAO);
+            glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
+        }
+
+        glCullFace(GL_BACK);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+
+    //calculating shadow
     
-
-    glViewport(0, 0, 2058, 2058);
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glCullFace(GL_FRONT);
-    renderMesh(shaderProgramDepth);
-    glCullFace(GL_BACK);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-
-
+    
 
 
     // 2. then render scene as normal with shadow mapping (using depth map)
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
+
 
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     glm::mat4 view = camera.GetViewMatrix();
-    glm::vec4 color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
     //glm::vec4 lightVector = glm::vec4(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f, 1.0);//w=1.0 position, w=0.0 direction
     glm::vec3 lightPosition = glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f);
     glm::vec3 ambient = glm::vec3(0.2f, 0.18f, 0.16f);
@@ -195,68 +238,67 @@ void renderScene() {
     int shininess = 32;
 
     glUseProgram(shaderProgram);
+
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
-    glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr(color));
-    /*glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-    //glUniform4fv(glGetUniformLocation(shaderProgram, "light.lightVector"), 1, glm::value_ptr(lightVector));
-    glUniform1i(glGetUniformLocation(shaderProgram, "light.lightType"), lightType);
-    glUniform3fv(glGetUniformLocation(shaderProgram, "light.position"), 1, glm::value_ptr(lightPosition));
-    glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(ambient));
-    glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(diffuse));
-    glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(specular));
-    glUniform1i(glGetUniformLocation(shaderProgram, "shininess"), shininess);
-    glUniform1f(glGetUniformLocation(shaderProgram, "light.distance"), -1.0);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
-    glUniform1i(glGetUniformLocation(shaderProgram, "shadowMap"), 0);*/
+    int shadowIndex = 0;
+    for (int i = 0; i < lightList.size(); i++) {
+        std::string base = "lights[" + std::to_string(i) + "]";
+        glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".position").c_str()), 1, glm::value_ptr((*lightList[i]).position));
+        //glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".direction").c_str()), 1, glm::value_ptr(direction));
+        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".lightType").c_str()), lightType);
+        glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".ambient").c_str()), 1, glm::value_ptr((*lightList[i]).ambient));
+        glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".diffuse").c_str()), 1, glm::value_ptr((*lightList[i]).diffuse));
+        glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".specular").c_str()), 1, glm::value_ptr((*lightList[i]).specular));
+        glUniform1f(glGetUniformLocation(shaderProgram, (base + ".distance").c_str()), (*lightList[i]).distance);
+        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".castshadow").c_str()), (*lightList[i]).castshadow);
 
-    bool ombre = true;
-    std::string base = "lights[" + std::to_string(0) + "]";
-    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".position").c_str()), 1, glm::value_ptr(lightPosition));
-    //glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".direction").c_str()), 1, glm::value_ptr(direction));
-    glUniform1i(glGetUniformLocation(shaderProgram, (base + ".lightType").c_str()), lightType);
-    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".ambient").c_str()), 1, glm::value_ptr(ambient));
-    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".diffuse").c_str()), 1, glm::value_ptr(diffuse));
-    glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".specular").c_str()), 1, glm::value_ptr(specular));
-    glUniform1f(glGetUniformLocation(shaderProgram, (base + ".distance").c_str()), -1.0);
-    glUniform1i(glGetUniformLocation(shaderProgram, (base + ".castshadow").c_str()), 1);
 
-    if (ombre) {
-        int shadowIndex = 0;
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, (base + ".lightSpaceMatrix").c_str()), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        if ((*lightList[0]).castshadow == 1) {
+            glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, (*lightList[i]).near_plane, (*lightList[i]).far_plane);
+            glm::mat4 lightView = glm::lookAt((*lightList[i]).position, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, (base + ".lightSpaceMatrix").c_str()), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
-        std::string shadowSampler = "shadowMaps[" + std::to_string(shadowIndex) + "]";
-        glActiveTexture(GL_TEXTURE0 + shadowIndex);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        glUniform1i(glGetUniformLocation(shaderProgram, shadowSampler.c_str()), shadowIndex);
+            std::string shadowSampler = "shadowMaps[" + std::to_string(shadowIndex) + "]";
+            glActiveTexture(GL_TEXTURE0 + shadowIndex);
+            glBindTexture(GL_TEXTURE_2D, (*lightList[i]).depthMap);
+            glUniform1i(glGetUniformLocation(shaderProgram, shadowSampler.c_str()), shadowIndex);
 
-        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), shadowIndex);
-        ++shadowIndex;
+            glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), shadowIndex);
+            ++shadowIndex;
+        }
+        else {
+            glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), -1);
+        }
+        glUniform1i(glGetUniformLocation(shaderProgram, "numLights"), lightList.size());
     }
-    else {
-        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), -1);
+
+    
+    for (int i = 0; i < meshList.size(); i++) {
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr((*meshList[i]).color));
+        glBindVertexArray((*meshList[i]).VAO);
+        glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
     }
-    glUniform1i(glGetUniformLocation(shaderProgram, "numLights"), 1);
-
-    renderMesh(shaderProgram);
 
 
 
-    //---LIGHT---
-
+    //---BOX LIGHT---
     glUseProgram(shaderLight);
-    glm::mat4 modelLight = glm::mat4(glm::translate(glm::mat4(1.0f), glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f)));
-    modelLight = glm::scale(modelLight, glm::vec3(0.1f));
-    glUniformMatrix4fv(glGetUniformLocation(shaderLight, "model"), 1, GL_FALSE, glm::value_ptr(modelLight));
-    glUniformMatrix4fv(glGetUniformLocation(shaderLight, "view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shaderLight, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform4fv(glGetUniformLocation(shaderLight, "color"), 1, glm::value_ptr(glm::vec4(1.0f)));
+    for (int i = 0; i < lightList.size(); i++) {
+        glm::mat4 modelLight = glm::mat4(glm::translate(glm::mat4(1.0f), (*lightList[i]).position));
+        modelLight = glm::scale(modelLight, glm::vec3(0.1f));
+        glUniformMatrix4fv(glGetUniformLocation(shaderLight, "model"), 1, GL_FALSE, glm::value_ptr(modelLight));
+        glUniformMatrix4fv(glGetUniformLocation(shaderLight, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderLight, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform4fv(glGetUniformLocation(shaderLight, "color"), 1, glm::value_ptr(glm::vec4((*lightList[i]).diffuse, 1.0f)));
 
-    glBindVertexArray(VAO_LIGHT);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(VAO_LIGHT);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 
     //---SkyBox---
     renderSkybox(shaderSkybox, VAO_SKY, cubemapTexture);

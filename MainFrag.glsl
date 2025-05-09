@@ -34,6 +34,8 @@ uniform Light lights[MAX_LIGHTS];
 uniform sampler2D shadowMaps[MAX_SHADOWS];
 uniform int numLights;
 
+float gamma = 0.5;
+
 float ShadowCalculation(vec4 fragPosLightSpace, sampler2D shadowMap) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
@@ -96,6 +98,6 @@ void main() {
 
         result += computeLight(lights[i], fs_in.Normal, fs_in.FragPos, color, viewPos, viewDir, shadow);
     }
-    FragColor = vec4(result, color.a);
+    FragColor = vec4(result*gamma, color.a);
     //FragColor = computeLight(light, fs_in.Normal, fs_in.FragPos, color, viewPos, viewDir, fs_in.FragPosLightSpace);
 }
