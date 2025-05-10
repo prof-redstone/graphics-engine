@@ -16,27 +16,31 @@ class Light;
 struct Mesh {
     unsigned int VAO;
     unsigned int VBO;
+    unsigned int VBONorm;
     std::vector<float> vertices;
     std::vector<float> normales;
     glm::mat4 model;
-    glm::vec4 color;
-    int shininess;
 
+    glm::vec4 color;
+    float ambianteLightMult;
+    int shininess;
 };
 
 enum LightType {
-    DIRECTIONAL, // w = 0.0
-    POINT        // w = 1.0
+    DIRECTIONAL, // 0
+    POINT        // 1
 };
 
 struct Light {
     LightType type;
     glm::vec3 position;
     glm::vec3 direction;
+    glm::vec3 color;
     glm::vec3 ambient;
     glm::vec3 diffuse;
     glm::vec3 specular;
     float distance;
+    float intensity;
 
     int castshadow;
     unsigned int depthMapFBO;
@@ -61,12 +65,12 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 // Fonctions d'initialisation
-int InitGLFW(GLFWwindow*& window);
-void SetupRender();
+int InitGLFW(GLFWwindow*& window, const char* nom);
+void SetupRender(const char* nom);
 void terminateRender();
+
 // Fonctions de rendu
 void renderScene();
-//void renderMesh(unsigned int shaderName);
 void renderSkybox(unsigned int shader, unsigned int VAO, unsigned int cubemapTexture);
 
 // Gestion des entrées
@@ -79,14 +83,36 @@ unsigned int loadCubemap(std::vector<std::string> faces);
 std::vector<float> addNormals(const std::vector<float>& verts);
 
 // Setup des objets
-Mesh* setupMesh(std::vector<float> vertices);
+Mesh* setupMesh(std::vector<float> vertices, const glm::vec3& position = glm::vec3(0.0f, 0.0f, 0.0f));
+void updateMesh(Mesh* mesh, std::vector<float> vertices);
+void setMeshPosition(Mesh* mesh, const glm::vec3& position);
+void setMeshColor(Mesh* mesh, const glm::vec4& color);
+void setMeshShininess(Mesh* mesh, int shininess);
+void setMeshAmbianteLightMult(Mesh* mesh, float ambianteLightMult);
 unsigned int setupSkyboxVAO();
 unsigned int setupLightVAO();
 
 //setup des lights
-Light* setupLight(LightType type, int castShadow);
+Light* createLight(
+    LightType type = POINT,
+    bool castShadow = false,
+    const glm::vec3& position = glm::vec3(4.0f, 5.0f, 1.0f),
+    const glm::vec3& direction = glm::vec3(1.5f, 5.0f, 1.0f),
+    const glm::vec3& color = glm::vec3(1.0f, 1.0f, 1.0f),
+    float intensity = 1.0f,
+    float distance = -1.0f
+);
+void setLightColor(Light* light, const glm::vec3& color);
+void setLightPosition(Light* light, const glm::vec3& position);
+void setLightDirection(Light* light, const glm::vec3& direction);
+void setLightDistance(Light* light, float distance);
+void setLightCastShadow(Light* light, bool castShadow);
+void setLightIntensity(Light* light, float intensity);
+
 void setupLightShadow(Light* l);
 glm::mat4 getLightSpaceMatrix(Light* l);
+
+
 // Gestion de la fenêtre
 bool shouldCloseTheApp();
 

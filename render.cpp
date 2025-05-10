@@ -15,6 +15,8 @@ unsigned int SCR_HEIGHT = 800;
 GLFWwindow* window = nullptr;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
+int frameCounter = 0;
+
 std::vector<Mesh*> meshList;
 std::vector<Light*> lightList;
 
@@ -32,8 +34,8 @@ static unsigned int VAO_LIGHT;
 static unsigned int cubemapTexture;
 
 
-void SetupRender() {
-    if (InitGLFW(window) == -1) std::cout << "Erreur in init GLFW" << std::endl;
+void SetupRender(const char * nom) {
+    if (InitGLFW(window, nom) == -1) std::cout << "Erreur in init GLFW" << std::endl;
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glEnable(GL_DEPTH_TEST);
 
@@ -76,7 +78,7 @@ void terminateRender() {
     glfwTerminate();
 }
 
-Mesh* setupMesh(std::vector<float> vertices) {
+Mesh* setupMesh(std::vector<float> vertices, const glm::vec3& position) {
     Mesh* mesh = new Mesh();
     mesh->vertices = vertices;
     glGenVertexArrays(1, &mesh->VAO);
@@ -89,11 +91,10 @@ Mesh* setupMesh(std::vector<float> vertices) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    unsigned int VBONorm;
     mesh->normales = computeNormals(vertices);
 
-    glGenBuffers(1, &VBONorm);//generate VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBONorm);//VBO actif
+    glGenBuffers(1, &mesh->VBONorm);//generate VBO
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);//VBO actif
     glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -101,23 +102,69 @@ Mesh* setupMesh(std::vector<float> vertices) {
 
     glBindVertexArray(0);
 
-    mesh->model = glm::mat4(1.0);
+    
+    mesh->model = glm::mat4(glm::translate(glm::mat4(1.0f), position));
     mesh->color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
     mesh->shininess = 32;
+    mesh->ambianteLightMult = 0.2;
     meshList.push_back(mesh);
     return mesh;
 }
 
-Light* setupLight(LightType type = POINT, int castShadow = 1) {
+void setMeshPosition(Mesh* mesh,const glm::vec3& position) {
+    if (mesh == nullptr) return;
+    mesh->model = glm::mat4(glm::translate(glm::mat4(1.0f), position));
+}
+
+void setMeshColor(Mesh* mesh, const glm::vec4& color) {
+    if (mesh == nullptr) return;
+        mesh->color = color;
+}
+
+void setMeshShininess(Mesh* mesh, int shininess) {
+    if (mesh == nullptr) return;
+    mesh->shininess = shininess;
+}
+
+void setMeshAmbianteLightMult(Mesh* mesh, float ambianteLightMult) {
+    if (mesh == nullptr) return;
+    mesh->ambianteLightMult = ambianteLightMult;
+}
+
+void updateMesh(Mesh* mesh, std::vector<float> vertices) {
+    mesh->vertices = vertices;
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    mesh->normales = computeNormals(vertices);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);
+    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+Light* createLight(
+    LightType type,
+    bool castShadow,
+    const glm::vec3& position,
+    const glm::vec3& direction,
+    const glm::vec3& color,
+    float intensity,
+    float distance
+) {
     Light* light = new Light();
     light->type = type;
-    light->position = glm::vec3(4.0f, 5.0f, 1.0f);
-    light->direction = glm::vec3(1.5f, 5.0f, 1.0f); 
-    light->ambient = glm::vec3(0.2f, 0.18f, 0.16f);
-    light->diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
-    light->specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    light->position = position;
+    light->direction = direction;
+    light->color = color;
+    light->intensity = intensity;
+    light->ambient = color*intensity;
+    light->diffuse = color * intensity;
+    light->specular = color * intensity;
     light->castshadow = castShadow;
-    light->distance = -1.0f;
+    light->distance = distance;
 
     if (light->type == POINT) {
         light->near_plane = 0.1f;
@@ -135,12 +182,53 @@ Light* setupLight(LightType type = POINT, int castShadow = 1) {
         light->width = 25.0;
     }
 
-    if (light->castshadow == 1) {
+    if (light->castshadow) {
         setupLightShadow(light);
     }
 
     lightList.push_back(light);
     return light;
+}
+
+void setLightColor(Light* light, const glm::vec3& color) {
+    if (light == nullptr) return;
+    light->color = color;
+    light->ambient = color * light->intensity;
+    light->diffuse = color * light->intensity;
+    light->specular = color * light->intensity;
+}
+
+void setLightPosition(Light* light, const glm::vec3& position) {
+    if (light == nullptr) return;
+    light->position = position;
+}
+
+void setLightDirection(Light* light, const glm::vec3& direction) {
+    if (light == nullptr) return;
+    light->direction = direction;
+}
+
+void setLightDistance(Light* light, float distance) {
+    if (light == nullptr) return;
+    light->distance = distance;
+}
+
+void setLightCastShadow(Light* light, bool castShadow) {
+    if (light == nullptr) return;
+    if (castShadow && !light->castshadow) {
+        light->castshadow = true;
+        setupLightShadow(light);
+    }else if (!castShadow && light->castshadow) {
+        light->castshadow = false;
+    }
+}
+
+void setLightIntensity(Light* light, float intensity) {
+    if (light == nullptr) return;
+    light->intensity = intensity;
+    light->ambient = light->color * intensity;
+    light->diffuse = light->color * intensity;
+    light->specular = light->color * intensity;
 }
 
 void setupLightShadow(Light* l) {
@@ -177,18 +265,21 @@ void renderScene() {
 
 
     //calculating shadow
+    int parityFrameShadowRender = 1; //min 1, max =~ 2
     glUseProgram(shaderProgramDepth);
     glCullFace(GL_FRONT);
     for (int i = 0; i < lightList.size(); i++) {
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(getLightSpaceMatrix(lightList[i])));
-        glViewport(0, 0, (*lightList[i]).shadowWidth, (*lightList[i]).shadowHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, (*lightList[i]).depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
+        if (lightList[i]->castshadow && (frameCounter % parityFrameShadowRender == 0)) {
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(getLightSpaceMatrix(lightList[i])));
+            glViewport(0, 0, (*lightList[i]).shadowWidth, (*lightList[i]).shadowHeight);
+            glBindFramebuffer(GL_FRAMEBUFFER, (*lightList[i]).depthMapFBO);
+            glClear(GL_DEPTH_BUFFER_BIT);
 
-        for (int i = 0; i < meshList.size(); i++) {
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
-            glBindVertexArray((*meshList[i]).VAO);
-            glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
+            for (int i = 0; i < meshList.size(); i++) {
+                glUniformMatrix4fv(glGetUniformLocation(shaderProgramDepth, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
+                glBindVertexArray((*meshList[i]).VAO);
+                glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
+            }
         }
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -220,10 +311,10 @@ void renderScene() {
         glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".diffuse").c_str()), 1, glm::value_ptr((*lightList[i]).diffuse));
         glUniform3fv(glGetUniformLocation(shaderProgram, (base + ".specular").c_str()), 1, glm::value_ptr((*lightList[i]).specular));
         glUniform1f(glGetUniformLocation(shaderProgram, (base + ".distance").c_str()), (*lightList[i]).distance);
-        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".castshadow").c_str()), (*lightList[i]).castshadow);
+        glUniform1i(glGetUniformLocation(shaderProgram, (base + ".castshadow").c_str()), (*lightList[i]).castshadow ? 1 : 0);
 
 
-        if ((*lightList[0]).castshadow == 1) {
+        if ((*lightList[i]).castshadow) {
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, (base + ".lightSpaceMatrix").c_str()), 1, GL_FALSE, glm::value_ptr( getLightSpaceMatrix(lightList[i]) ));
 
             std::string shadowSampler = "shadowMaps[" + std::to_string(shadowIndex) + "]";
@@ -232,7 +323,7 @@ void renderScene() {
             glUniform1i(glGetUniformLocation(shaderProgram, shadowSampler.c_str()), shadowIndex);
 
             glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), shadowIndex);
-            ++shadowIndex;
+            shadowIndex++;
         }else {
             glUniform1i(glGetUniformLocation(shaderProgram, (base + ".shadowIndex").c_str()), -1);
         }
@@ -242,7 +333,9 @@ void renderScene() {
     
     for (int i = 0; i < meshList.size(); i++) {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
-        glUniform4fv(glGetUniformLocation(shaderProgram, "color"), 1, glm::value_ptr((*meshList[i]).color));
+        glUniform4fv(glGetUniformLocation(shaderProgram, "mat.color"), 1, glm::value_ptr((*meshList[i]).color));
+        glUniform1i(glGetUniformLocation(shaderProgram, "mat.shininess"), (*meshList[i]).shininess);
+        glUniform1f(glGetUniformLocation(shaderProgram, "mat.ambianteLightMult"), (*meshList[i]).ambianteLightMult);
         glBindVertexArray((*meshList[i]).VAO);
         glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
     }
@@ -252,12 +345,13 @@ void renderScene() {
     //---BOX LIGHT---
     glUseProgram(shaderLight);
     for (int i = 0; i < lightList.size(); i++) {
-        glm::mat4 modelLight = glm::mat4(glm::translate(glm::mat4(1.0f), (*lightList[i]).position));
+        glm::vec3 boxPos = ((*lightList[i]).type == POINT) ? (*lightList[i]).position : camera.Position + glm::float32(4.0)*glm::normalize((*lightList[i]).direction);
+        glm::mat4 modelLight = glm::mat4(glm::translate(glm::mat4(1.0f), boxPos));
         modelLight = glm::scale(modelLight, glm::vec3(0.1f));
         glUniformMatrix4fv(glGetUniformLocation(shaderLight, "model"), 1, GL_FALSE, glm::value_ptr(modelLight));
         glUniformMatrix4fv(glGetUniformLocation(shaderLight, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderLight, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform4fv(glGetUniformLocation(shaderLight, "color"), 1, glm::value_ptr(glm::vec4((*lightList[i]).diffuse, 1.0f)));
+        glUniform4fv(glGetUniformLocation(shaderLight, "color"), 1, glm::value_ptr(glm::vec4((*lightList[i]).color, 1.0f)));
 
         glBindVertexArray(VAO_LIGHT);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -268,6 +362,7 @@ void renderScene() {
 
     glfwSwapBuffers(window);
     glfwPollEvents();
+    frameCounter++;
 }
 
 glm::mat4 getLightSpaceMatrix(Light* l) {
@@ -470,15 +565,12 @@ unsigned int loadCubemap(std::vector<std::string> faces)
     for (unsigned int i = 0; i < faces.size(); i++)
     {
         unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-        if (data)
-        {
+        if (data){
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
             );
             stbi_image_free(data);
-        }
-        else
-        {
+        }else{
             std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
             stbi_image_free(data);
         }
@@ -498,14 +590,14 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     SCR_HEIGHT = height;
 }
 
-int InitGLFW(GLFWwindow*& window) {
+int InitGLFW(GLFWwindow*& window, const char * nom) {
     if (!glfwInit()) return -1;
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Graphics engine", NULL, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, nom, NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;

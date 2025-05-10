@@ -1,17 +1,18 @@
 ﻿  render.cpp
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.hpp(32,8): warning C4099: 'Light' : nom de type déjà rencontré avec 'class' et utilisant maintenant 'struct'
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.hpp(34,8): warning C4099: 'Light' : nom de type déjà rencontré avec 'class' et utilisant maintenant 'struct'
   (compiler le fichier source 'render.cpp')
-      C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.hpp(32,8):
+      C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.hpp(34,8):
       voir la déclaration de 'Light'
   
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(191,74): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(240,81): warning C4267: 'argument' : conversion de 'size_t' en 'GLint', perte possible de données
-C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(247,70): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(109,31): warning C4305: '=' : troncation de 'double' à 'float'
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(281,78): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(331,81): warning C4267: 'argument' : conversion de 'size_t' en 'GLint', perte possible de données
+C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\render.cpp(340,70): warning C4267: 'argument' : conversion de 'size_t' en 'GLsizei', perte possible de données
 LINK : warning LNK4098: conflit entre la bibliothèque par défaut 'LIBCMT' et les autres bibliothèques ; utilisez /NODEFAULTLIB:library
   Génération de code en cours
-  2 of 749 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
+  1 of 753 functions ( 0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    10 functions had inline decision re-evaluated but remain unchanged
+    9 functions had inline decision re-evaluated but remain unchanged
   Fin de la génération du code
 glew32s.lib(glew.obj) : warning LNK4099: PDB '' n'a pu être trouvé avec 'glew32s.lib(glew.obj)' ou sur '' ; l'objet sera lié sans informations de débogage
   graphics engine.vcxproj -> C:\Users\tomde\OneDrive\Documents\programmation\C++\graphics engine\x64\Release\graphics engine.exe
