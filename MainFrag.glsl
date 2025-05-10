@@ -35,37 +35,37 @@ uniform sampler2D shadowMaps[MAX_SHADOWS];
 uniform int numLights;
 
 float gamma = 0.5;
+int PCFSize = 1;
+int nbSample = (1 + 2 * PCFSize) * (1 + 2 * PCFSize);
 
-float ShadowCalculation(vec4 fragPosLightSpace, sampler2D shadowMap) {
+float ShadowCalculation(vec4 fragPosLightSpace, sampler2D shadowMap, vec3 normal, vec3 lightDir) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     if (projCoords.z > 1.0)
         return 0.0;
     float currentDepth = projCoords.z;
-    float bias = 0.005;
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+    for (int x = -PCFSize; x <= PCFSize; ++x) {
+        for (int y = -PCFSize; y <= PCFSize; ++y) {
             float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
             shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
         }
     }
-    shadow /= 9.0;
+    shadow /= nbSample;
+
+    vec2 distanceFromEdge;
+    distanceFromEdge.x = min(projCoords.x, 1.0 - projCoords.x);
+    distanceFromEdge.y = min(projCoords.y, 1.0 - projCoords.y);
+    float distToEdge = min(distanceFromEdge.x, distanceFromEdge.y) * 10.0;
+    float fadeout = clamp(distToEdge, 0.0, 1.0);
+    shadow *= fadeout;
     return shadow;
 }
 
-vec3 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 viewPos, vec3 viewDir, float shadow) {
+vec3 computeLight(Light l, vec3 norm, vec3 FragPos, vec4 color, vec3 lightDir, vec3 viewPos, vec3 viewDir, float shadow) {
     vec3 result = vec3(0.0, 0.0, 0.0);
-    vec3 lightDir = vec3(0.0, 0.0, 0.0);
-
-    if (l.lightType == 1) {
-        lightDir = normalize(l.position - FragPos);
-    }
-    else if (l.lightType == 0) {
-        lightDir = normalize(l.direction);
-    }
-
     vec3 reflectDir = reflect(-lightDir, norm);
 
     result += max(dot(norm, lightDir), 0.0) * l.diffuse;
@@ -90,14 +90,21 @@ void main() {
 
     for (int i = 0; i < numLights; ++i) {
         float shadow = 0.0;
+        vec3 lightDir = vec3(0.0, 0.0, 0.0);
+
+        if (lights[i].lightType == 1) {
+            lightDir = normalize(lights[i].position - fs_in.FragPos);
+        }
+        else if (lights[i].lightType == 0) {
+            lightDir = normalize(lights[i].direction);
+        }
 
         if ((lights[i].castshadow != 0) && (lights[i].shadowIndex >= 0)) {
             vec4 fragPosLightSpace = lights[i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-            shadow = ShadowCalculation(fragPosLightSpace, shadowMaps[lights[i].shadowIndex]);
+            shadow = ShadowCalculation(fragPosLightSpace, shadowMaps[lights[i].shadowIndex], fs_in.Normal, lightDir);
         }
 
-        result += computeLight(lights[i], fs_in.Normal, fs_in.FragPos, color, viewPos, viewDir, shadow);
+        result += computeLight(lights[i], fs_in.Normal, fs_in.FragPos, color, lightDir, viewPos, viewDir, shadow);
     }
     FragColor = vec4(result*gamma, color.a);
-    //FragColor = computeLight(light, fs_in.Normal, fs_in.FragPos, color, viewPos, viewDir, fs_in.FragPosLightSpace);
 }

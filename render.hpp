@@ -41,11 +41,11 @@ struct Light {
     int castshadow;
     unsigned int depthMapFBO;
     unsigned int depthMap;
-    unsigned int shadowWidth = 2048, shadowHeight = 2048;
-    float near_plane = 0.1f, far_plane = 25.0f;
-    float width = 10.0f;//ortho
-    float fov = glm::radians(90.0f);//perspective
-    float aspectRatio = 1.0f;//perspective
+    unsigned int shadowWidth, shadowHeight;
+    float near_plane, far_plane;
+    float width;//ortho
+    float fov;//perspective
+    float aspectRatio;//perspective
 };
 
 // Variables globales externes
@@ -86,9 +86,10 @@ unsigned int setupLightVAO();
 //setup des lights
 Light* setupLight(LightType type, int castShadow);
 void setupLightShadow(Light* l);
+glm::mat4 getLightSpaceMatrix(Light* l);
 // Gestion de la fenêtre
 bool shouldCloseTheApp();
 
 std::vector<float> computeNormals(const std::vector<float>& verts);
-
+void calculerEtAfficherMoyenneFPS(float fps, int tailleMax);
 #endif // RENDER_HPP
