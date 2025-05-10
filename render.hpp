@@ -17,6 +17,7 @@ struct Mesh {
     unsigned int VAO;
     unsigned int VBO;
     unsigned int VBONorm;
+    unsigned int texture;
     std::vector<float> vertices;
     std::vector<float> normales;
     glm::mat4 model;
