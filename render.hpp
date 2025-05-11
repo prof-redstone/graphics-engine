@@ -1,4 +1,3 @@
-// render.hpp
 #ifndef RENDER_HPP
 #define RENDER_HPP
 
@@ -12,19 +11,24 @@
 class Camera;
 class Light;
 
+
+
 // Structure Mesh
 struct Mesh {
     unsigned int VAO;
     unsigned int VBO;
     unsigned int VBONorm;
+    //unsigned int VBOText;
     unsigned int texture;
     std::vector<float> vertices;
     std::vector<float> normales;
+    //std::vector<float> text;
     glm::mat4 model;
 
     glm::vec4 color;
     float ambianteLightMult;
     int shininess;
+    bool enableTexture;
 };
 
 enum LightType {
@@ -51,6 +55,7 @@ struct Light {
     float width;//ortho
     float fov;//perspective
     float aspectRatio;//perspective
+    unsigned int PCFSize;
 };
 
 // Variables globales externes
@@ -84,7 +89,10 @@ unsigned int loadCubemap(std::vector<std::string> faces);
 std::vector<float> addNormals(const std::vector<float>& verts);
 
 // Setup des objets
+void setMeshTextureFile(Mesh* mesh,const char* path);
 Mesh* setupMesh(std::vector<float> vertices, const glm::vec3& position = glm::vec3(0.0f, 0.0f, 0.0f));
+Mesh* setupMeshTexture(std::vector<float> vertices, const glm::vec3& position = glm::vec3(0.0f, 0.0f, 0.0f));
+void updateMeshTexture(Mesh* mesh, std::vector<float> vertices);
 void updateMesh(Mesh* mesh, std::vector<float> vertices);
 void setMeshPosition(Mesh* mesh, const glm::vec3& position);
 void setMeshColor(Mesh* mesh, const glm::vec4& color);
@@ -118,5 +126,9 @@ glm::mat4 getLightSpaceMatrix(Light* l);
 bool shouldCloseTheApp();
 
 std::vector<float> computeNormals(const std::vector<float>& verts);
+std::vector<float> computeNormalsTexture(const std::vector<float>& verts);
 void calculerEtAfficherMoyenneFPS(float fps, int tailleMax);
+
+GLFWwindow* getwindow();
+Camera getCamera();
 #endif // RENDER_HPP

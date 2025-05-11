@@ -137,20 +137,20 @@
     <ClCompile Include="render.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="DepthShadowFrag.glsl" />
-    <None Include="DepthShadowVertex.glsl" />
-    <None Include="LightFrag.glsl" />
-    <None Include="LightVertex.glsl" />
-    <None Include="MainFrag.glsl" />
-    <None Include="MainVertex.glsl" />
-    <None Include="SkyboxFrag.glsl" />
-    <None Include="SkyboxVertex.glsl" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="light.h" />
     <ClInclude Include="render.hpp" />
     <ClInclude Include="stb_image.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="sources\shaders\DepthShadowFrag.glsl" />
+    <None Include="sources\shaders\DepthShadowVertex.glsl" />
+    <None Include="sources\shaders\LightFrag.glsl" />
+    <None Include="sources\shaders\LightVertex.glsl" />
+    <None Include="sources\shaders\MainFrag.glsl" />
+    <None Include="sources\shaders\MainVertex.glsl" />
+    <None Include="sources\shaders\SkyboxFrag.glsl" />
+    <None Include="sources\shaders\SkyboxVertex.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

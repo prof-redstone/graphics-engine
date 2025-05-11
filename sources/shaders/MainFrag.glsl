@@ -15,6 +15,7 @@ struct Light {
     mat4 lightSpaceMatrix;
     int castshadow;
     int shadowIndex;
+    int PCFSize;
 };
 
 in VS_OUT{
@@ -32,26 +33,25 @@ struct Material {
     sampler2D text;
 };
 
-uniform Material mat;
 
-uniform vec3 viewPos;
 
 #define MAX_LIGHTS 8
 #define MAX_SHADOWS 4
 uniform Light lights[MAX_LIGHTS];
 uniform sampler2D shadowMaps[MAX_SHADOWS];
 uniform int numLights;
+uniform float gamma = 0.7;
+uniform vec3 viewPos;
+uniform Material mat;
 
-float gamma = 1.0/numLights;
-int PCFSize = 1;
 
-float ShadowCalculation(vec4 fragPosLightSpace, sampler2D shadowMap, vec3 lightDir) {
+float ShadowCalculation(vec4 fragPosLightSpace, sampler2D shadowMap, vec3 lightDir, int PCFSize) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     if (projCoords.z > 1.0)
         return 0.0;
     float currentDepth = projCoords.z;
-    float bias = max(0.05 * (1.0 - dot(fs_in.Normal, lightDir)), 0.005);
+    float bias = max(0.005 * (1.0 - dot(fs_in.Normal, lightDir)), 0.005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
     for (int x = -PCFSize; x <= PCFSize; ++x) {
@@ -108,7 +108,7 @@ void main() {
 
         if ((lights[i].castshadow != 0) && (lights[i].shadowIndex >= 0)) {
             vec4 fragPosLightSpace = lights[i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-            shadow = ShadowCalculation(fragPosLightSpace, shadowMaps[lights[i].shadowIndex], lightDir);
+            shadow = ShadowCalculation(fragPosLightSpace, shadowMaps[lights[i].shadowIndex], lightDir, lights[i].PCFSize);
         }
 
         result += computeLight(lights[i], lightDir, viewDir, shadow);
@@ -116,6 +116,7 @@ void main() {
 
     FragColor = vec4(result*gamma, mat.color.a);
     if (mat.enableTexture == 1) {
-        FragColor = texture(mat.text, fs_in.TextCoord);
+        FragColor = vec4(result * gamma, mat.color.a) * texture(mat.text, fs_in.TextCoord);
     }
+    //FragColor.rgb = FragColor.rgb / (FragColor.rgb + vec3(1.0));
 }

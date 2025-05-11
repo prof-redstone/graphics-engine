@@ -23,16 +23,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SkyboxVertex.glsl" />
-    <None Include="SkyboxFrag.glsl" />
-    <None Include="LightVertex.glsl" />
-    <None Include="LightFrag.glsl" />
-    <None Include="DepthShadowFrag.glsl" />
-    <None Include="DepthShadowVertex.glsl" />
-    <None Include="MainFrag.glsl" />
-    <None Include="MainVertex.glsl" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="camera.h">
       <Filter>Fichiers sources</Filter>
     </ClInclude>
@@ -45,5 +35,15 @@
     <ClInclude Include="render.hpp">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="sources\shaders\DepthShadowFrag.glsl" />
+    <None Include="sources\shaders\DepthShadowVertex.glsl" />
+    <None Include="sources\shaders\LightFrag.glsl" />
+    <None Include="sources\shaders\LightVertex.glsl" />
+    <None Include="sources\shaders\MainFrag.glsl" />
+    <None Include="sources\shaders\MainVertex.glsl" />
+    <None Include="sources\shaders\SkyboxFrag.glsl" />
+    <None Include="sources\shaders\SkyboxVertex.glsl" />
   </ItemGroup>
 </Project>

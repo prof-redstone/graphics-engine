@@ -1,30 +1,48 @@
 #define GLEW_STATIC
-#include "render.hpp"
-#include "camera.h"
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <iostream>
 #include <glm/glm.hpp>
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #include <glm/gtc/type_ptr.hpp>
 
-unsigned int SCR_WIDTH = 1000;
-unsigned int SCR_HEIGHT = 800;
+#include "stb_image.h"
+#include "render.hpp"
+#include "camera.h"
+
+std::vector<std::string> SkyBoxFaces{
+    "sources/skybox/right.jpg",
+    "sources/skybox/left.jpg",
+    "sources/skybox/top.jpg",
+    "sources/skybox/bottom.jpg",
+    "sources/skybox/front.jpg",
+    "sources/skybox/back.jpg"
+};
+
+const char* shaderPathSkyBoxVert = "sources/shaders/SkyboxVertex.glsl";
+const char* shaderPathSkyBoxFrag = "sources/shaders/SkyboxFrag.glsl";
+const char* shaderPathLightVert = "sources/shaders/LightVertex.glsl";
+const char* shaderPathLightFrag = "sources/shaders/LightFrag.glsl";
+const char* shaderPathMainVert = "sources/shaders/MainVertex.glsl";
+const char* shaderPathMainFrag = "sources/shaders/MainFrag.glsl";
+const char* shaderPathDepthVert = "sources/shaders/DepthShadowVertex.glsl";
+const char* shaderPathDepthFrag = "sources/shaders/DepthShadowFrag.glsl";
+
 GLFWwindow* window = nullptr;
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 
-int frameCounter = 0;
 
-std::vector<Mesh*> meshList;
-std::vector<Light*> lightList;
-
+static unsigned int SCR_WIDTH = 1000;
+static unsigned int SCR_HEIGHT = 800;
 static float lastX = SCR_WIDTH / 2.0f;
 static float lastY = SCR_HEIGHT / 2.0f;
 static bool firstMouse = true;//set mouse coordinate to origine on first click
 static float deltaTime = 0.0f;
 static float lastFrame = 0.0f;
+static int frameCounter = 0;
+static float gamma = 0.8;
 static unsigned int shaderSkybox;
 static unsigned int shaderLight;
 static unsigned int shaderProgram;
@@ -32,6 +50,8 @@ static unsigned int shaderProgramDepth;
 static unsigned int VAO_SKY;
 static unsigned int VAO_LIGHT;
 static unsigned int cubemapTexture;
+static std::vector<Mesh*> meshList;
+static std::vector<Light*> lightList;
 
 
 void SetupRender(const char * nom) {
@@ -39,20 +59,12 @@ void SetupRender(const char * nom) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glEnable(GL_DEPTH_TEST);
 
-    shaderSkybox = ShaderLoader("SkyboxVertex.glsl", "SkyboxFrag.glsl");
-    shaderLight = ShaderLoader("LightVertex.glsl", "LightFrag.glsl");
-    shaderProgram = ShaderLoader("MainVertex.glsl", "MainFrag.glsl");
-    shaderProgramDepth = ShaderLoader("DepthShadowVertex.glsl", "DepthShadowFrag.glsl");
+    shaderSkybox = ShaderLoader(shaderPathSkyBoxVert, shaderPathSkyBoxFrag);
+    shaderLight = ShaderLoader(shaderPathLightVert, shaderPathLightFrag);
+    shaderProgram = ShaderLoader(shaderPathMainVert, shaderPathMainFrag);
+    shaderProgramDepth = ShaderLoader(shaderPathDepthVert, shaderPathDepthFrag);
 
-    std::vector<std::string> faces{
-        "sources/skybox/right.jpg",
-        "sources/skybox/left.jpg",
-        "sources/skybox/top.jpg",
-        "sources/skybox/bottom.jpg",
-        "sources/skybox/front.jpg",
-        "sources/skybox/back.jpg"
-    };
-    cubemapTexture = loadCubemap(faces);
+    cubemapTexture = loadCubemap(SkyBoxFaces);
 
     VAO_SKY = setupSkyboxVAO();
     VAO_LIGHT = setupLightVAO();
@@ -77,6 +89,41 @@ void terminateRender() {
 
     glfwTerminate();
 }
+
+
+void setMeshTextureFile(Mesh* mesh, const char* path) {
+    const int pixelArtMaxSize = 64;
+    glGenTextures(1, &(mesh->texture));
+    glBindTexture(GL_TEXTURE_2D, (mesh->texture));
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 4); //force le 4 channels
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+        bool isPixelArt = (width <= pixelArtMaxSize && height <= pixelArtMaxSize);
+        if (isPixelArt) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        }else {
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+        mesh->enableTexture = true;
+        std::cout << path << " loaded with " << nrChannels << " channels" << std::endl;
+    }
+    else {
+        std::cout << "Failed to load texture : " << path << std::endl;
+    }
+    stbi_image_free(data);
+}
+
 
 Mesh* setupMesh(std::vector<float> vertices, const glm::vec3& position) {
     Mesh* mesh = new Mesh();
@@ -104,31 +151,79 @@ Mesh* setupMesh(std::vector<float> vertices, const glm::vec3& position) {
 
     
     mesh->model = glm::mat4(glm::translate(glm::mat4(1.0f), position));
-    mesh->color = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
+    mesh->color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
     mesh->shininess = 32;
-    mesh->ambianteLightMult = 0.2;
+    mesh->ambianteLightMult = 0.3;
+    mesh->enableTexture = false;
     meshList.push_back(mesh);
     return mesh;
 }
 
-void setMeshTexture(Mesh* mesh, char* path) {
-    glGenTextures(1, &(mesh->texture));
-    glBindTexture(GL_TEXTURE_2D, (mesh->texture));
-    // set the texture wrapping/filtering options (on the currently bound texture object)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load and generate the texture
-    int width, height, nrChannels;
-    unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
-    if (data){
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }else{
-        std::cout << "Failed to load texture : " << path << std::endl;
-    }
-    stbi_image_free(data);
+Mesh* setupMeshTexture(std::vector<float> vertices, const glm::vec3& position) {
+    Mesh* mesh = new Mesh();
+    mesh->vertices = vertices;
+    glGenVertexArrays(1, &mesh->VAO);
+    glBindVertexArray(mesh->VAO);
+
+    glGenBuffers(1, &mesh->VBO);//generate VBO
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);//VBO actif
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0 * sizeof(float)));
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    mesh->normales = computeNormalsTexture(vertices);
+
+    glGenBuffers(1, &mesh->VBONorm);//generate VBO
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);//VBO actif
+    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+
+    mesh->model = glm::mat4(glm::translate(glm::mat4(1.0f), position));
+    mesh->color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    mesh->shininess = 32;
+    mesh->ambianteLightMult = 0.3;
+    mesh->enableTexture = true;
+    meshList.push_back(mesh);
+    return mesh;
+}
+
+
+
+void updateMeshTexture(Mesh* mesh, std::vector<float> vertices) {
+    mesh->vertices = vertices;
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);//VBO actif
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    mesh->normales = computeNormalsTexture(vertices);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);
+    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+}
+
+void updateMesh(Mesh* mesh, std::vector<float> vertices) {
+    mesh->vertices = vertices;
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    mesh->normales = computeNormals(vertices);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);
+    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
 }
 
 void setMeshPosition(Mesh* mesh,const glm::vec3& position) {
@@ -151,19 +246,7 @@ void setMeshAmbianteLightMult(Mesh* mesh, float ambianteLightMult) {
     mesh->ambianteLightMult = ambianteLightMult;
 }
 
-void updateMesh(Mesh* mesh, std::vector<float> vertices) {
-    mesh->vertices = vertices;
 
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-
-    mesh->normales = computeNormals(vertices);
-
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->VBONorm);
-    glBufferData(GL_ARRAY_BUFFER, mesh->normales.size() * sizeof(float), mesh->normales.data(), GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
-}
 
 Light* createLight(
     LightType type,
@@ -191,6 +274,7 @@ Light* createLight(
         light->far_plane = 25.0f;
         light->shadowWidth = 2048;
         light->shadowHeight = 2048;
+        light->PCFSize = 1;
         light->aspectRatio = 1.0f;
         light->fov = glm::radians(90.0f);
     }
@@ -199,6 +283,7 @@ Light* createLight(
         light->far_plane = 30;
         light->shadowWidth = 2048;
         light->shadowHeight = 2048;
+        light->PCFSize = 1;
         light->width = 25.0;
     }
 
@@ -277,6 +362,7 @@ void renderScene() {
     lastFrame = currentFrame;
     calculerEtAfficherMoyenneFPS(1 / deltaTime, 60);
 
+
     processInput(window);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -320,6 +406,7 @@ void renderScene() {
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
+    glUniform1f(glGetUniformLocation(shaderProgram, "gamma"), gamma);
 
     int shadowIndex = 0;
     for (int i = 0; i < lightList.size(); i++) {
@@ -336,6 +423,7 @@ void renderScene() {
 
         if ((*lightList[i]).castshadow) {
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, (base + ".lightSpaceMatrix").c_str()), 1, GL_FALSE, glm::value_ptr( getLightSpaceMatrix(lightList[i]) ));
+            glUniform1i(glGetUniformLocation(shaderProgram, (base + ".PCFSize").c_str()), (*lightList[i]).PCFSize);
 
             std::string shadowSampler = "shadowMaps[" + std::to_string(shadowIndex) + "]";
             glActiveTexture(GL_TEXTURE0 + shadowIndex);
@@ -350,12 +438,19 @@ void renderScene() {
     }
     glUniform1i(glGetUniformLocation(shaderProgram, "numLights"), lightList.size());
 
-    
+    const int TextureIndex = shadowIndex;
     for (int i = 0; i < meshList.size(); i++) {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr((*meshList[i]).model));
         glUniform4fv(glGetUniformLocation(shaderProgram, "mat.color"), 1, glm::value_ptr((*meshList[i]).color));
         glUniform1i(glGetUniformLocation(shaderProgram, "mat.shininess"), (*meshList[i]).shininess);
         glUniform1f(glGetUniformLocation(shaderProgram, "mat.ambianteLightMult"), (*meshList[i]).ambianteLightMult);
+        glUniform1i(glGetUniformLocation(shaderProgram, "mat.enableTexture"), 0);
+        if ((*meshList[i]).enableTexture) {
+            glActiveTexture(GL_TEXTURE0 + TextureIndex);
+            glBindTexture(GL_TEXTURE_2D, (*meshList[i]).texture);
+            glUniform1i(glGetUniformLocation(shaderProgram, "mat.text"), TextureIndex);
+            glUniform1i(glGetUniformLocation(shaderProgram, "mat.enableTexture"), 1);
+        }
         glBindVertexArray((*meshList[i]).VAO);
         glDrawArrays(GL_TRIANGLES, 0, (*meshList[i]).vertices.size() / 3);
     }
@@ -768,6 +863,28 @@ std::vector<float> computeNormals(const std::vector<float>& verts) {
     return normals;
 }
 
+std::vector<float> computeNormalsTexture(const std::vector<float>& verts) {
+    std::vector<float> normals(verts.size()*3/5, 0.0f);
+
+    for (size_t i = 0; i < verts.size(); i += 15) {
+        glm::vec3 v0(verts[i], verts[i + 1], verts[i + 2]);
+        glm::vec3 v1(verts[i + 3 + 2], verts[i + 4 + 2], verts[i + 5 + 2]);
+        glm::vec3 v2(verts[i + 6 + 4], verts[i + 7 + 4], verts[i + 8 + 4]);
+
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 normal = glm::normalize(glm::cross(edge1, edge2));
+
+        for (int j = 0; j < 3; ++j) {
+            normals[i * 9 / 15 + j * 3 + 0] = normal.x;
+            normals[i * 9 / 15 + j * 3 + 1] = normal.y;
+            normals[i * 9 / 15 + j * 3 + 2] = normal.z;
+        }
+    }
+
+    return normals;
+}
+
 void calculerEtAfficherMoyenneFPS(float fps, int tailleMax = 60) {
     static std::vector<float> tableauFPS;
 
@@ -781,4 +898,12 @@ void calculerEtAfficherMoyenneFPS(float fps, int tailleMax = 60) {
         std::cout << "FPS : " << static_cast<int>(somme / tableauFPS.size()) << std::endl;
         tableauFPS.clear();
     }
+}
+
+GLFWwindow* getwindow() {
+    return window;
+}
+
+Camera getCamera() {
+    return camera;
 }

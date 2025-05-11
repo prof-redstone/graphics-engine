@@ -122,79 +122,84 @@ int main(){
     Mesh* truc = setupMesh(vertices);
 
     std::vector<float> cube = {
-        1.0f, 1.0f, 1.0f, 0.0f, 0.0f,  // Sommet 1: position + texture
-    1.0f, 1.0f, 3.0f, 0.0f, 1.0f,  // Sommet 2: position + texture
-    1.0f, 3.0f, 3.0f, 1.0f, 1.0f,  // Sommet 3: position + texture
+        1.0f, 1.0f, 1.0f, 0.0, 1.0,//facing x neg
+        1.0f, 1.0f, 3.0f, 1.0, 1.0,
+        1.0f, 3.0f, 3.0f, 1.0, 0.0,
 
-    // Face 2
-    3.0f, 3.0f, 1.0f, 1.0f, 0.0f,  // Sommet 4: position + texture
-    1.0f, 1.0f, 1.0f, 0.0f, 0.0f,  // Sommet 5: position + texture
-    1.0f, 3.0f, 1.0f, 1.0f, 1.0f,  // Sommet 6: position + texture
+        1.0f, 1.0f, 1.0f, 0.0, 1.0,
+        1.0f, 3.0f, 3.0f, 1.0, 0.0,
+        1.0f, 3.0f, 1.0f, 0.0, 0.0,
 
-    // Face 3
-    3.0f, 1.0f, 3.0f, 0.0f, 0.0f,  // Sommet 7: position + texture
-    1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  // Sommet 8: position + texture
-    3.0f, 1.0f, 1.0f, 1.0f, 0.0f,  // Sommet 9: position + texture
+        1.0f, 1.0f, 3.0f, 0.0, 1.0,//facing z pos
+        3.0f, 1.0f, 3.0f, 1.0, 1.0,
+        3.0f, 3.0f, 3.0f, 1.0, 0.0,
 
-    // Face 4
-    3.0f, 3.0f, 1.0f, 0.0f, 0.0f,  // Sommet 10: position + texture
-    3.0f, 1.0f, 1.0f, 1.0f, 0.0f,  // Sommet 11: position + texture
-    1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  // Sommet 12: position + texture
+        1.0f, 1.0f, 3.0f, 0.0, 1.0,
+        3.0f, 3.0f, 3.0f, 1.0, 0.0,
+        1.0f, 3.0f, 3.0f, 0.0, 0.0,
 
-    // Face 5
-    1.0f, 1.0f, 1.0f, 1.0f, 1.0f,  // Sommet 13: position + texture
-    1.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 14: position + texture
-    1.0f, 3.0f, 1.0f, 0.0f, 1.0f,  // Sommet 15: position + texture
+        3.0f, 1.0f, 3.0f, 0.0, 1.0,//facing x pos
+        3.0f, 1.0f, 1.0f, 1.0, 1.0,
+        3.0f, 3.0f, 1.0f, 1.0, 0.0,
 
-    // Face 6
-    3.0f, 1.0f, 3.0f, 1.0f, 0.0f,  // Sommet 16: position + texture
-    1.0f, 1.0f, 3.0f, 0.0f, 0.0f,  // Sommet 17: position + texture
-    1.0f, 1.0f, 1.0f, 0.0f, 1.0f,  // Sommet 18: position + texture
+        3.0f, 1.0f, 3.0f, 0.0, 1.0,
+        3.0f, 3.0f, 1.0f, 1.0, 0.0,
+        3.0f, 3.0f, 3.0f, 0.0, 0.0,
 
-    // Face 7
-    1.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 19: position + texture
-    1.0f, 1.0f, 3.0f, 1.0f, 0.0f,  // Sommet 20: position + texture
-    3.0f, 1.0f, 3.0f, 1.0f, 1.0f,  // Sommet 21: position + texture
+        3.0f, 1.0f, 1.0f, 0.0, 1.0,//facing z neg
+        1.0f, 1.0f, 1.0f, 1.0, 1.0,
+        1.0f, 3.0f, 1.0f, 1.0, 0.0,
 
-    // Face 8
-    3.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 22: position + texture
-    3.0f, 1.0f, 1.0f, 1.0f, 1.0f,  // Sommet 23: position + texture
-    3.0f, 3.0f, 1.0f, 0.0f, 1.0f,  // Sommet 24: position + texture
+        3.0f, 1.0f, 1.0f, 0.0, 1.0,
+        1.0f, 3.0f, 1.0f, 1.0, 0.0,
+        3.0f, 3.0f, 1.0f, 0.0, 0.0,
 
-    // Face 9
-    3.0f, 1.0f, 1.0f, 1.0f, 1.0f,  // Sommet 25: position + texture
-    3.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 26: position + texture
-    3.0f, 1.0f, 3.0f, 0.0f, 1.0f,  // Sommet 27: position + texture
+        1.0f, 3.0f, 1.0f, 0.0, 1.0,//facing top
+        1.0f, 3.0f, 3.0f, 1.0, 1.0,
+        3.0f, 3.0f, 3.0f, 1.0, 0.0,
 
-    // Face 10
-    3.0f, 3.0f, 3.0f, 1.0f, 0.0f,  // Sommet 28: position + texture
-    3.0f, 3.0f, 1.0f, 1.0f, 1.0f,  // Sommet 29: position + texture
-    1.0f, 3.0f, 1.0f, 0.0f, 1.0f,  // Sommet 30: position + texture
+        1.0f, 3.0f, 1.0f, 0.0, 1.0,
+        3.0f, 3.0f, 3.0f, 1.0, 0.0,
+        3.0f, 3.0f, 1.0f, 0.0, 0.0,
 
-    // Face 11
-    3.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 31: position + texture
-    1.0f, 3.0f, 1.0f, 1.0f, 1.0f,  // Sommet 32: position + texture
-    1.0f, 3.0f, 3.0f, 1.0f, 0.0f,  // Sommet 33: position + texture
+        3.0f, 1.0f, 1.0f, 0.0, 1.0,//facing bottom
+        3.0f, 1.0f, 3.0f, 1.0, 1.0,
+        1.0f, 1.0f, 3.0f, 1.0, 0.0,
 
-    // Face 12
-    3.0f, 3.0f, 3.0f, 0.0f, 0.0f,  // Sommet 34: position + texture
-    1.0f, 3.0f, 3.0f, 1.0f, 0.0f,  // Sommet 35: position + texture
-    3.0f, 1.0f, 3.0f, 1.0f, 1.0f
+        3.0f, 1.0f, 1.0f, 0.0, 1.0,
+        1.0f, 1.0f, 3.0f, 1.0, 0.0,
+        1.0f, 1.0f, 1.0f, 0.0, 0.0,
     };
-    Mesh* truc2 = setupMesh(cube, glm::vec3(0.0,0.5,0.0));
+    std::vector<float> face = {
+        1.0f, 1.0f, 1.0f, 0.0, 1.0,//facing x neg
+        1.0f, 1.0f, 3.0f, 1.0, 1.0,
+        1.0f, 3.0f, 3.0f, 1.0, 0.0,
+
+        1.0f, 1.0f, 1.0f, 0.0, 1.0,
+        1.0f, 3.0f, 3.0f, 1.0, 0.0,
+        1.0f, 3.0f, 1.0f, 0.0, 0.0
+    };
+
+    Mesh* truc2 = setupMeshTexture(cube, glm::vec3(0.0,0.5,0.0));
+    setMeshTextureFile(truc2, "sources/textures/back.jpg");
+    updateMeshTexture(truc2, face);
     //updateMesh(truc, cube);
+    //setMeshColor(truc2, glm::vec4(1.0,1.0,1.0,1.0));
 
 
 
-    Light* sun = createLight(POINT, true);
-    Light* sun2 = createLight(DIRECTIONAL, true);
-    setLightColor(sun, glm::vec3(0.0, 0.5, 1.0));
-    setLightColor(sun2, glm::vec3(1.0, 1.0, 0.8));
+
+    Light* sun = createLight(DIRECTIONAL, true);
+    Light* led = createLight(POINT, true);
+    setLightColor(sun, glm::vec3(1.0, 1.0, 1.0));
+    setLightColor(led, glm::vec3(0.5, 1.0, 0.5));
+    setLightIntensity(led, 0.1);
+    setLightIntensity(sun, 1.0);
 
    
     while (shouldCloseTheApp()){
-        setMeshPosition(truc2, glm::vec3(0.0, glm::sin((float)glfwGetTime())+1.0,3.0));
-        setLightPosition(sun, glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f));
+        //setMeshPosition(truc2, glm::vec3(0.0, glm::sin((float)glfwGetTime())+1.0,3.0));
+        setLightPosition(led, glm::vec3(-2.0f + glm::sin((float)glfwGetTime()), 2.0f + glm::cos((float)glfwGetTime()), -2.0f));
         renderScene();
     }
     terminateRender();
